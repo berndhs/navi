@@ -192,11 +192,12 @@ Navi::ReadButton ()
   url.setScheme ("http");
   url.setHost ("xapi.openstreetmap.org");
   url.setPath ("api/0.6/map");
-  double partMinute = 1.0/240.0;
-  double left = lon - partMinute;
-  double right = lon + partMinute;
-  double top = lat + partMinute;
-  double bot = lat - partMinute;
+  double partMinLat = mainUi.latRange->value() / 60.0;
+  double partMinLon = mainUi.lonRange->value() / 60.0;
+  double left = lon - partMinLon;
+  double right = lon + partMinLon;
+  double top = lat + partMinLat;
+  double bot = lat - partMinLat;
   url.addQueryItem (QString ("bbox"),QString ("%1,%2,%3,%4")
                                       .arg (left).arg (bot)
                                       .arg (right).arg (top));
