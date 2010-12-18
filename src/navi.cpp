@@ -31,6 +31,11 @@
 #include <QTimer>
 #include <QCursor>
 #include <QNetworkRequest>
+#include <QDomDocument>
+#include <QDomElement>
+#include <QDomNode>
+#include <QDomNodeList>
+
 
 using namespace deliberate;
 
@@ -215,7 +220,40 @@ Navi::HandleReply (QNetworkReply * reply)
   mainUi.logDisplay->append ("Reply to ");
   mainUi.logDisplay->append (reply->url().toString());
   mainUi.logDisplay->append (QString (data));
+  QDomDocument replyDoc;
+  replyDoc.setContent (data);
+  QDomNodeList  ways = replyDoc.elementsByTagName ("way");
+  for (int i=0; i< ways.count(); i++) {
+    ShowWay (ways.item(i));
+  }
 }
+
+void
+Navi::ShowWay (const QDomNode & node)
+{
+  QDomNodeList kids = node.childNodes ();
+  if (node.isElement ()) {
+    QDomElement elt = node.toElement();
+    QString id = elt.attribute ("id");
+    mainUi.logDisplay->append (QString ("Way ID %1").arg (id));
+  } else {
+    mainUi.logDisplay->append ("Way Node not and Element");
+  }
+  for (int k=0; k<kids.count(); k++) {
+    QDomNode kid = kids.item(k);
+    if (kid.isElement()) {
+      QDomElement kidElt = kid.toElement();
+      if (kidElt.tagName() == "tag") {
+        QString key = kidElt.attribute("k");
+        QString val = kidElt.attribute("v");
+        mainUi.logDisplay->append (QString ("  tag key \"%1\""
+                                            "  value \"%2\"")
+                                  .arg (key).arg (val));
+      } 
+    }
+  }
+}
+
 
 
 } // namespace

@@ -28,6 +28,7 @@
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QDomNode>
 
 class QApplication;
 
@@ -70,6 +71,7 @@ private:
 
   void Connect ();
   void CloseCleanup ();
+  void ShowWay (const QDomNode & node);
 
   bool             initDone;
   QApplication    *app;
