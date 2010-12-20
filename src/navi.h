@@ -25,6 +25,7 @@
 #include "ui_navi.h"
 #include "config-edit.h"
 #include "helpview.h"
+#include "db-manager.h"
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -66,12 +67,30 @@ private slots:
 
   void ReadButton ();
   void HandleReply (QNetworkReply *reply);
+  void SaveResponse ();
+  void ReadXML ();
+  void SaveSql ();
 
 private:
 
+  class Highway {
+  public:
+    Highway ();
+    void  clear ();
+
+    QString    name;
+    QString    kind;
+    bool       ishighway;
+    QMap <QString, QString>  attributes;
+  };
+
   void Connect ();
   void CloseCleanup ();
+  void SetDefaults ();
   void ShowWay (const QDomNode & node);
+  void SaveNodesSql (QDomDocument & doc);
+  void SaveWaysSql (QDomDocument & doc);
+  void ProcessData (QByteArray & data);
 
   bool             initDone;
   QApplication    *app;
@@ -83,8 +102,11 @@ private:
   deliberate::HelpView        *helpView;
   bool             runAgain;
 
+  DbManager               db;
   QNetworkAccessManager   network;
   QNetworkReply          *reply;
+
+  QByteArray   responseBytes;
 
 };
 

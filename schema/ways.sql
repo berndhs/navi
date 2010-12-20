@@ -1,0 +1,3 @@
+CREATE TABLE "ways" (
+  "wayid" TEXT CONSTRAINT "wayid" UNIQUE  ON CONFLICT IGNORE
+);

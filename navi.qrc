@@ -6,4 +6,11 @@
 <qresource prefix="/help">
   <file alias="LICENSE.txt">help/LICENSE.txt</file>
 </qresource>
+<qresource prefix="/schemas">
+  <file alias="nodes.sql">schema/nodes.sql</file>
+  <file alias="nodetags.sql">schema/nodetags.sql</file>
+  <file alias="ways.sql">schema/ways.sql</file>
+  <file alias="waytags.sql">schema/waytags.sql</file>
+  <file alias="waynodes.sql">schema/waynodes.sql</file>
+</qresource>
 </RCC>

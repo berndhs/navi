@@ -1,0 +1,5 @@
+CREATE TABLE "nodes" (
+  "nodeid" TEXT CONSTRAINT "nodeid" UNIQUE ON CONFLICT REPLACE,
+  "lat" REAL NOT NULL,
+  "lon" REAL NOT NULL
+);

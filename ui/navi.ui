@@ -19,42 +19,18 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_2">
-    <item row="0" column="0">
+    <item row="0" column="0" colspan="3">
      <widget class="QTextBrowser" name="logDisplay"/>
     </item>
-    <item row="1" column="0">
+    <item row="1" column="0" colspan="3">
      <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="0" rowspan="2">
-       <layout class="QFormLayout" name="formLayout">
-        <property name="fieldGrowthPolicy">
-         <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
-        </property>
-        <item row="0" column="0">
-         <widget class="QLabel" name="latLabel">
-          <property name="text">
-           <string>Lat</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QLineEdit" name="latEdit"/>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="lonLabel">
-          <property name="text">
-           <string>Lon</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QLineEdit" name="lonEdit"/>
-        </item>
-       </layout>
-      </item>
       <item row="0" column="1">
        <widget class="QLabel" name="label">
         <property name="text">
-         <string>+/-</string>
+         <string>minute +/-</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
         </property>
        </widget>
       </item>
@@ -77,7 +53,10 @@
       <item row="1" column="1">
        <widget class="QLabel" name="label_2">
         <property name="text">
-         <string>+/-</string>
+         <string>minute +/-</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
         </property>
        </widget>
       </item>
@@ -97,12 +76,93 @@
         </property>
        </widget>
       </item>
+      <item row="0" column="0" rowspan="2">
+       <layout class="QFormLayout" name="formLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="latLabel">
+          <property name="text">
+           <string>Lat</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QDoubleSpinBox" name="latValue">
+          <property name="decimals">
+           <number>3</number>
+          </property>
+          <property name="minimum">
+           <double>-90.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>90.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.001000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="lonLabel">
+          <property name="text">
+           <string>Lon</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QDoubleSpinBox" name="lonValue">
+          <property name="decimals">
+           <number>3</number>
+          </property>
+          <property name="minimum">
+           <double>-180.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>180.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.001000000000000</double>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
      </layout>
     </item>
     <item row="2" column="0">
+     <widget class="QLabel" name="label_3">
+      <property name="text">
+       <string>Server</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="1" colspan="2">
+     <widget class="QLineEdit" name="serverEdit"/>
+    </item>
+    <item row="3" column="0">
      <widget class="QPushButton" name="readButton">
       <property name="text">
-       <string>Read</string>
+       <string>Network Get</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="2">
+     <widget class="QPushButton" name="xmlReadButton">
+      <property name="text">
+       <string>Read XML</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="2">
+     <widget class="QPushButton" name="saveButton">
+      <property name="text">
+       <string>Save XML</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0">
+     <widget class="QPushButton" name="saveSqlButton">
+      <property name="text">
+       <string>Save Sql</string>
       </property>
      </widget>
     </item>
