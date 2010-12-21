@@ -65,6 +65,10 @@ public:
   bool HaveWay (const QString & wayId);
   bool GetWayNodes (const QString & wayId,
                  QStringList & nodeIdList);
+  bool GetNodes (quint64 parcelIndex,
+                QStringList & nodeIdList);
+  bool GetWays (quint64 parcelIndex,
+                QStringList & wayIdList);
 
 public slots:
 
@@ -92,6 +96,9 @@ private:
   void WriteParcel (const QString & type,
                     const QString & id,
                     quint64 parcelIndex);
+  bool GetItems (quint64 parcelIndex,
+                 const QString & type,
+                 QStringList & idList);
 
   QSqlDatabase  geoBase;
   bool          dbRunning;

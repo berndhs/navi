@@ -323,6 +323,38 @@ DbManager::GetWayNodes (const QString & wayId,
   return true;
 }
 
+bool
+DbManager::GetNodes (quint64 parcelIndex,
+                    QStringList & nodeIdList)
+{
+  return GetItems (parcelIndex,"node",nodeIdList);
+}
+
+bool
+DbManager::GetWays (quint64 parcelIndex,
+                    QStringList & wayIdList)
+{
+  return GetItems (parcelIndex,"way",wayIdList);
+}
+
+bool
+DbManager::GetItems (quint64 parcelIndex,
+                    const QString & type,
+                    QStringList & idList)
+{
+  QString cmd ("select %1id from %1parcels where parcelid=%2");
+  QSqlQuery select (geoBase);
+  bool ok = select.exec (cmd.arg(type).arg (parcelIndex));
+  if (!ok) {
+    return false;
+  }
+  idList.clear ();
+  while (select.next()) {
+    idList.append (select.value(0).toString());
+  }
+  return true;
+}
+
 void
 DbManager::StartTransaction ()
 {

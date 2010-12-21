@@ -17,7 +17,7 @@ PROJECT_NAME=navi
 PRO_FILE = ${PROJECT_NAME}.pro
 MAKEFILE = Make_${PROJECT_NAME}
 TOP_MAKEFILE = Makefile
-TARGETS = bin/${PROJECT_NAME}
+TARGETS = bin/collect 
 DESKTOP_FILE = ${PROJECT_NAME}.desktop
 DESKTOP_DIR = /usr/share/applications
 ICON_FILE = ${PROJECT_NAME}.png
@@ -25,7 +25,7 @@ ICON_DIR = /usr/share/pixmaps
 
 all: $(MAKEFILE)
 	$(MAKE) -f $(MAKEFILE) all
-	ls -ltr bin/${PROJECT_NAME}*
+	ls -ltr bin/*
 
 clean: $(MAKEFILE) FORCE
 	$(MAKE) -f $(MAKEFILE) clean
@@ -37,11 +37,11 @@ distclean: $(MAKEFILE) FORCE
 	
 debug: $(MAKEFILE) FORCE
 	$(MAKE) -f $(MAKEFILE) debug
-	ls -ltr bin/${PROJECT_NAME}*
+	ls -ltr bin/*
 
 release: $(MAKEFILE) FORCE
 	$(MAKE) -f $(MAKEFILE) release
-	ls -ltr bin/${PROJECT_NAME}*
+	ls -ltr bin/*
 
 install: all FORCE
 	install -d $(DESTDIR)

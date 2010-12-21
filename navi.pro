@@ -1,5 +1,5 @@
 #
-# nothing application
+# Navi application group
 #
 
 #/****************************************************************
@@ -23,71 +23,6 @@
 # *  Boston, MA  02110-1301, USA.
 # ****************************************************************/
 
-MYNAME = navi
+TEMPLATE = subdirs
 
-TEMPLATE = app
-
-QT += core gui sql webkit network xml 
-CONFIG += debug_and_release
-
-MAKEFILE = Make_$${MYNAME}
-!include ("options.pri") {
-  message ("no options.pri, using defaults")
-}
-
-CONFIG(debug, debug|release) {
-  DEFINES += DELIBERATE_DEBUG=1
-  TARGET = bin/$${MYNAME}_d
-  OBJECTS_DIR = tmp/debug/obj
-  message ("DEBUG cxx-flags used $${QMAKE_CXXFLAGS_DEBUG}")
-  message ("DEBUG c-flags used $${QMAKE_CFLAGS_DEBUG}")
-} else {
-  DEFINES += DELIBERATE_DEBUG=0
-  TARGET = bin/$${MYNAME}
-  OBJECTS_DIR = tmp/release/obj
-  QMAKE_CXXFLAGS_RELEASE -= -g
-  QMAKE_CFLAGS_RELEASE -= -g
-  message ("RELEASE cxx-flags used $${QMAKE_CXXFLAGS_RELEASE}")
-  message ("RELEASE c-flags used $${QMAKE_CFLAGS_RELEASE}")
-}
-
-
-
-UI_DIR = tmp/ui
-MOC_DIR = tmp/moc
-RCC_DIR = tmp/rcc
-RESOURCES = $${MYNAME}.qrc
-
-FORMS = \
-        ui/$${MYNAME}.ui \
-        ui/DebugLog.ui \
-        ui/config-edit.ui \
-        ui/helpwin.ui \
-        
-
-HEADERS = \
-          src/$${MYNAME}.h \
-          src/main.h \
-          src/gpl2.h \
-          src/cmdoptions.h \
-          src/config-edit.h \
-          src/delib-debug.h \
-          src/deliberate.h \
-          src/version.h \
-          src/helpview.h \
-          src/db-manager.h \
-          src/navi-global.h \
-
-
-SOURCES = \
-          src/$${MYNAME}.cpp \
-          src/main.cpp \
-          src/cmdoptions.cpp \
-          src/config-edit.cpp \
-          src/delib-debug.cpp \
-          src/deliberate.cpp \
-          src/version.cpp \
-          src/helpview.cpp \
-          src/db-manager.cpp \
-          src/navi-global.cpp \
-
+SUBDIRS = collect.pro nvroute.pro

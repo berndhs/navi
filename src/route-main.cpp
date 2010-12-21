@@ -27,7 +27,7 @@
 #include "deliberate.h"
 #include "version.h"
 #include "cmdoptions.h"
-#include "navi.h"
+#include "nvroute.h"
 
 
 int
@@ -83,13 +83,13 @@ main (int argc, char *argv[])
   }
 #endif
   
-  navi::Collect   collect;
+  navi::NvRoute   nvroute;
 
-  app.setWindowIcon (navi.windowIcon());
-  navi.Init (app);
-  navi.AddConfigMessages (configMessages);
+  app.setWindowIcon (nvroute.windowIcon());
+  nvroute.Init (app);
+  nvroute.AddConfigMessages (configMessages);
 
-  navi.Run ();
+  nvroute.Run ();
   result = app.exec ();
   qDebug () << " QApplication exec finished " << result;
   return result;

@@ -27,7 +27,7 @@
 #include "deliberate.h"
 #include "version.h"
 #include "cmdoptions.h"
-#include "navi.h"
+#include "collect.h"
 
 
 int
@@ -85,11 +85,11 @@ main (int argc, char *argv[])
   
   navi::Collect   collect;
 
-  app.setWindowIcon (navi.windowIcon());
-  navi.Init (app);
-  navi.AddConfigMessages (configMessages);
+  app.setWindowIcon (collect.windowIcon());
+  collect.Init (app);
+  collect.AddConfigMessages (configMessages);
 
-  navi.Run ();
+  collect.Run ();
   result = app.exec ();
   qDebug () << " QApplication exec finished " << result;
   return result;
