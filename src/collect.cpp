@@ -246,8 +246,9 @@ qDebug () << " SendNext autoGet " << autoGet;
     SendRequest (westEnd, westEnd + lonStep,
                  southEnd, southEnd + latStep);
   } else {
-    mainUi.logDisplay->append (QString("done with final request %1")
+    mainUi.logDisplay->append (QString("ALL DONE with final request %1")
                                        .arg(lastUrl));
+    ShowProgress ();
   }
 }
 
@@ -387,15 +388,21 @@ Collect::SaveSql ()
   mainUi.logDisplay->append ("start saving ways");
   SaveWaysSql ();
   mainUi.logDisplay->append (QString ("done with %1").arg(lastUrl));
+  ShowProgress ();
+  if (autoGet && useNetwork) {
+    QTimer::singleShot (100, this, SLOT (SendNext()));
+  }
+}
+
+void
+Collect::ShowProgress ()
+{
   int percentLat = qRound (((southEnd - minSouth) 
                            / (northEnd - minSouth)) * 100.0);
   int percentLon = qRound (((westEnd - minWest)
                            / (eastEnd - minWest)) * 100.0);
   mainUi.latProgress->setValue (percentLat);
   mainUi.lonProgress->setValue (percentLon);
-  if (autoGet && useNetwork) {
-    QTimer::singleShot (100, this, SLOT (SendNext()));
-  }
 }
 
 void

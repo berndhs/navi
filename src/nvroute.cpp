@@ -34,6 +34,8 @@
 #include <QCursor>
 #include <QFileDialog>
 #include <QFile>
+#include <QTreeWidgetItem>
+#include <QTreeWidget>
 
 
 using namespace deliberate;
@@ -95,7 +97,15 @@ NvRoute::Run ()
 void
 NvRoute::SetDefaults ()
 {
+  double defLat (0.0);
+  double defLon (0.0);
+  defLat = Settings().value ("defaults/lat",defLat).toDouble();
+  Settings().setValue ("defaults/lat",defLat);
+  defLon = Settings().value ("defaults/lon",defLon).toDouble();
+  Settings().setValue ("defaults/lon",defLon);
   Settings().sync();
+  mainUi.latValue->setValue (defLat);
+  mainUi.lonValue->setValue (defLon);
 }
 
 void
@@ -197,6 +207,8 @@ NvRoute::FindButton ()
 {
   double lat = mainUi.latValue->value();
   double lon = mainUi.lonValue->value();
+  Settings().setValue ("defaults/lat",lat);
+  Settings().setValue ("defaults/lon",lon);
   quint64 parcel = Parcel::Index (lat,lon);
   mainUi.logDisplay->append (QString ("lat %1 lon %2 is parcel %3 (0x%4)")
                              .arg (lat)
@@ -210,15 +222,49 @@ NvRoute::FindButton ()
   mainUi.logDisplay->append (QString ("  have %1 ways:").arg(nways));
   for (int w=0; w<nways; w++) {
     QString wayId = wayList.at(w);
-    QString name ("not named");
-    bool hasName = db.GetWayTag (wayId, "name",name);
-    if (hasName) {
-      mainUi.logDisplay->append (QString ("  Way %1 %2")
-                              .arg(wayId)
-                              .arg(name));
-    }
+    mainUi.logDisplay->append (QString ("  Way %1")
+                              .arg(wayId));
+    ListWayDetails (wayId);
   }
   mainUi.logDisplay->append ("---------");
+}
+
+void
+NvRoute::ListWayDetails (const QString & wayId)
+{
+  QString name ("not named");
+  bool hasName = db.GetWayTag (wayId, "name",name);
+  if (!hasName) {
+    return;
+  }
+  QTreeWidget *tree = mainUi.wayTree;
+  QStringList labels;
+  labels << wayId;
+  labels << name;
+  QString highwayType ("?");
+  bool isHighway = db.GetWayTag (wayId, "highway", highwayType);
+  labels << highwayType;
+  
+  QTreeWidgetItem *wayItem = new QTreeWidgetItem (tree, labels);
+  QStringList nodeList;
+  bool hasNodes = db.GetWayNodes (wayId, nodeList);
+  if (hasNodes) {
+    QList <QTreeWidgetItem*> itemList;
+    QTreeWidgetItem *nodeItem;
+    for (int n=0; n<nodeList.count(); n++) {
+      nodeItem = new QTreeWidgetItem;
+      QString nodeId = nodeList.at (n);
+      nodeItem->setText (0,nodeId);
+      double lat, lon;
+      bool haveCoord = db.GetNode (nodeId, lat, lon);
+      if (haveCoord) {
+        nodeItem->setText (1,QString::number (lat));
+        nodeItem->setText (2,QString::number (lon));
+      }
+      itemList.append (nodeItem);
+    } 
+    wayItem->addChildren (itemList);
+  }
 }
 
 

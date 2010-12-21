@@ -101,6 +101,7 @@ private:
   void ProcessData (QByteArray & data);
   void BuildWayParcels (const QString & wayId, 
                         const QStringList & nodeIdList);
+  void ShowProgress ();
 
   bool             initDone;
   QApplication    *app;

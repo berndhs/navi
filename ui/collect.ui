@@ -14,7 +14,7 @@
    <string>Navi Collector</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../collect.qrc">
+   <iconset resource="../navi.qrc">
     <normaloff>:/navi.png</normaloff>:/navi.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -39,7 +39,7 @@
         <item row="0" column="1">
          <widget class="QDoubleSpinBox" name="southValue">
           <property name="decimals">
-           <number>3</number>
+           <number>6</number>
           </property>
           <property name="minimum">
            <double>-90.000000000000000</double>
@@ -62,7 +62,7 @@
         <item row="1" column="1">
          <widget class="QDoubleSpinBox" name="westValue">
           <property name="decimals">
-           <number>3</number>
+           <number>6</number>
           </property>
           <property name="minimum">
            <double>-180.000000000000000</double>
@@ -85,7 +85,7 @@
         <item row="2" column="1">
          <widget class="QDoubleSpinBox" name="northValue">
           <property name="decimals">
-           <number>3</number>
+           <number>6</number>
           </property>
           <property name="minimum">
            <double>-90.000000000000000</double>
@@ -108,7 +108,7 @@
         <item row="3" column="1">
          <widget class="QDoubleSpinBox" name="eastValue">
           <property name="decimals">
-           <number>3</number>
+           <number>6</number>
           </property>
           <property name="minimum">
            <double>-180.000000000000000</double>
@@ -271,7 +271,7 @@
  </widget>
  <resources>
   <include location="../navi.qrc"/>
-  <include location="../collect.qrc"/>
+  <include location="../navi.qrc"/>
  </resources>
  <connections/>
 </ui>

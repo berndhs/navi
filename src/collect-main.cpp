@@ -38,9 +38,9 @@ main (int argc, char *argv[])
   QCoreApplication::setApplicationName ("navi");
   deliberate::ProgramVersion pv ("Navi");
   QCoreApplication::setApplicationVersion (pv.Version());
-  QSettings  settings;
-  deliberate::InitSettings ();
+  deliberate::DSettings  settings;
   deliberate::SetSettings (settings);
+  deliberate::Settings().SetPrefix ("collect_");
   settings.setValue ("program",pv.MyName());
 
 

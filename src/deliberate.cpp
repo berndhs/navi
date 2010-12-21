@@ -39,7 +39,7 @@ QTextStream & StdOut ()
 }
 
 
-static QSettings * mySettings(0);
+static DSettings * mySettings(0);
   
 void
 InitSettings ()
@@ -48,7 +48,7 @@ InitSettings ()
 }
 
 void
-SetSettings (QSettings & settings)
+SetSettings (DSettings & settings)
 {
   if (mySettings) {
     delete mySettings;
@@ -56,17 +56,59 @@ SetSettings (QSettings & settings)
   mySettings = &settings;
 }
 
-QSettings &
+DSettings &
 Settings ()
 {
-  if (mySettings) {
-    mySettings = new QSettings;
+  if (mySettings == 0) {
+    mySettings = new DSettings;
   }
   if (mySettings == 0) {
     std::cerr << "Cannot allocate Settings, have to quit" << std::endl;
     abort ();
   }
   return *mySettings;
+}
+
+QVariant
+DSettings::value (const QString & key,
+                  const QVariant & defaultValue)
+{
+  QString realkey = QString ("%1%2").arg(prefix).arg(key);
+  return QSettings::value (realkey, defaultValue);
+}
+
+QVariant
+DSettings::simpleValue (const QString & key,
+                  const QVariant & defaultValue)
+{
+  return QSettings::value (key, defaultValue);
+}
+
+void
+DSettings::setValue (const QString & key,
+                     const QVariant & value)
+{
+  QString realkey = QString ("%1%2").arg(prefix).arg(key);
+  QSettings::setValue (realkey, value);
+}
+
+void
+DSettings::setSimpleValue (const QString & key,
+                     const QVariant & value)
+{
+  QSettings::setValue (key, value);
+}
+
+QString
+DSettings::Prefix ()
+{
+  return prefix;
+}
+
+void
+DSettings::SetPrefix (const QString & newPrefix)
+{
+  prefix = newPrefix;
 }
 
 bool

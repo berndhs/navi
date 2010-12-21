@@ -75,6 +75,7 @@ private:
   void Connect ();
   void CloseCleanup ();
   void SetDefaults ();
+  void ListWayDetails (const QString & wayId);
 
   bool             initDone;
   QApplication    *app;

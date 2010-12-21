@@ -62,9 +62,9 @@ DbManager::Start ()
                     (QDesktopServices::DataLocation);
   QString geoBaseName = dataDir + QDir::separator() 
                          + QString ("geobase.sql");
-  geoBaseName = Settings().value ("database/geobase",geoBaseName)
+  geoBaseName = Settings().simpleValue ("database/geobase",geoBaseName)
                                     .toString();
-  Settings().setValue ("database/geobase",geoBaseName);
+  Settings().setSimpleValue ("database/geobase",geoBaseName);
   
 
   StartDB (geoBase, "geoBaseCon", geoBaseName);

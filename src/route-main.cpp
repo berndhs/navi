@@ -36,11 +36,12 @@ main (int argc, char *argv[])
   QCoreApplication::setOrganizationName ("BerndStramm");
   QCoreApplication::setOrganizationDomain ("bernd-stramm.com");
   QCoreApplication::setApplicationName ("navi");
-  deliberate::ProgramVersion pv ("Navi");
+  deliberate::ProgramVersion pv ("NvRoute");
   QCoreApplication::setApplicationVersion (pv.Version());
-  QSettings  settings;
+  deliberate::DSettings  settings;
   deliberate::InitSettings ();
   deliberate::SetSettings (settings);
+  deliberate::Settings().SetPrefix ("nvroute_");
   settings.setValue ("program",pv.MyName());
 
 
