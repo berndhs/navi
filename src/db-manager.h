@@ -44,18 +44,27 @@ public:
   void StartTransaction ();
   void CommitTransaction ();
 
-  void WriteNode (const QString & nodeid,
+  void WriteNode (const QString & nodeId,
                         double  lat,
                         double  lon);
-  void WriteWay (const QString & wayid);
-  void WriteWayNode (const QString & wayid,
-                     const QString & nodeid);
-  void WriteNodeTag (const QString & nodeid, 
+
+  void WriteWay (const QString & wayId);
+  void WriteWayNode (const QString & wayId,
+                     const QString & nodeId);
+  void WriteNodeTag (const QString & nodeId, 
                      const QString & key,
                      const QString & value);
-  void WriteWayTag (const QString & wayid,
+  void WriteWayTag (const QString & wayId,
                     const QString & key,
                     const QString & value);
+  void WriteNodeParcel (const QString & nodeId, 
+                   quint64 parcelIndex);
+  void WriteWayParcel (const QString & wayId,
+                  quint64 parcelIndex);
+  bool GetNode (const QString & nodeId, double & lat, double & lon);
+  bool HaveWay (const QString & wayId);
+  bool GetWayNodes (const QString & wayId,
+                 QStringList & nodeIdList);
 
 public slots:
 
@@ -80,6 +89,9 @@ private:
                  const QString & id,
                     const QString & key,
                     const QString & value);
+  void WriteParcel (const QString & type,
+                    const QString & id,
+                    quint64 parcelIndex);
 
   QSqlDatabase  geoBase;
   bool          dbRunning;

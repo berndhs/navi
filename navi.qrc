@@ -12,5 +12,7 @@
   <file alias="ways.sql">schema/ways.sql</file>
   <file alias="waytags.sql">schema/waytags.sql</file>
   <file alias="waynodes.sql">schema/waynodes.sql</file>
+  <file alias="nodeparcels.sql">schema/nodeparcels.sql</file>
+  <file alias="wayparcels.sql">schema/wayparcels.sql</file>
 </qresource>
 </RCC>

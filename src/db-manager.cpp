@@ -74,7 +74,9 @@ DbManager::Start ()
                 << "ways"
                 << "nodetags"
                 << "waytags"
-                << "waynodes";
+                << "waynodes"
+                << "nodeparcels"
+                << "wayparcels";
 
   CheckDBComplete (geoBase, eventElements);
 
@@ -167,19 +169,19 @@ qDebug () << " tried " << ok << " to create element with "
 }
 
 void
-DbManager::WriteNodeTag (const QString & nodeid, 
+DbManager::WriteNodeTag (const QString & nodeId, 
                      const QString & key,
                      const QString & value)
 {
-  WriteTag ("node",nodeid, key, value);
+  WriteTag ("node",nodeId, key, value);
 }
 
 void
-DbManager::WriteWayTag (const QString & wayid, 
+DbManager::WriteWayTag (const QString & wayId, 
                      const QString & key,
                      const QString & value)
 {
-  WriteTag ("way",wayid, key, value);
+  WriteTag ("way",wayId, key, value);
 }
 
 void
@@ -201,7 +203,37 @@ DbManager::WriteTag (const QString & type,
 }
 
 void
-DbManager::WriteNode (const QString & nodeid,
+DbManager::WriteNodeParcel (const QString & nodeId, 
+                            quint64 parcelIndex)
+{
+  WriteParcel ("node",nodeId, parcelIndex);
+}
+
+void
+DbManager::WriteWayParcel (const QString & wayId,
+                           quint64 parcelIndex)
+{
+  WriteParcel ("way", wayId, parcelIndex);
+}
+
+void
+DbManager::WriteParcel (const QString & type,
+                        const QString & id,
+                        quint64 parcelIndex)
+{
+  QString cmd ("insert or replace into %1parcels "
+               " (%1id, parcelid) "
+               " VALUES (?, ?)");
+  QSqlQuery insert (geoBase);
+  insert.prepare (cmd.arg (type));
+  insert.bindValue (0,QVariant (id));
+  insert.bindValue (1,QVariant (parcelIndex));
+  bool ok = insert.exec ();
+  qDebug () << " write parcel " << ok << insert.executedQuery();
+}
+
+void
+DbManager::WriteNode (const QString & nodeId,
                             double lat,
                             double lon)
 {
@@ -210,7 +242,7 @@ DbManager::WriteNode (const QString & nodeid,
                " VALUES (?, ?, ?) ");
   QSqlQuery insert (geoBase);
   insert.prepare (cmd);
-  insert.bindValue (0, QVariant(nodeid));
+  insert.bindValue (0, QVariant(nodeId));
   insert.bindValue (1, QVariant(lat));
   insert.bindValue (2, QVariant(lon));
   bool ok = insert.exec ();
@@ -218,31 +250,77 @@ DbManager::WriteNode (const QString & nodeid,
 }
 
 void
-DbManager::WriteWay (const QString & wayid)
+DbManager::WriteWay (const QString & wayId)
 {
   QString cmd ("insert or replace into ways "
                " (wayid) "
                " VALUES (?) ");
   QSqlQuery insert (geoBase);
   insert.prepare (cmd);
-  insert.bindValue (0, QVariant(wayid));
+  insert.bindValue (0, QVariant(wayId));
   bool ok = insert.exec ();
   qDebug () << " query " << ok << insert.executedQuery ();
 }
 
 void
-DbManager::WriteWayNode (const QString & wayid,
-                         const QString & nodeid)
+DbManager::WriteWayNode (const QString & wayId,
+                         const QString & nodeId)
 {
   QString cmd ("insert or replace into waynodes "
                " (wayid, nodeid) "
                " VALUES (?, ?) ");
   QSqlQuery insert (geoBase);
   insert.prepare (cmd);
-  insert.bindValue (0, QVariant (wayid));
-  insert.bindValue (1, QVariant (nodeid));
+  insert.bindValue (0, QVariant (wayId));
+  insert.bindValue (1, QVariant (nodeId));
   bool ok = insert.exec ();
   qDebug () << " query " << ok << insert.executedQuery ();
+}
+
+bool
+DbManager::GetNode (const QString & nodeId,
+                    double & lat,
+                    double & lon)
+{
+  QString cmd ("select lat, lon from nodes where nodeid =\"%1\"");
+  QSqlQuery select (geoBase);
+  bool ok = select.exec (cmd.arg (nodeId));
+  if (ok && select.next()) {
+    lat = select.value (0).toDouble();
+    lon = select.value (1).toDouble();
+  }
+  return ok;
+}
+
+bool
+DbManager::HaveWay (const QString & wayId)
+{
+  QString cmd ("select count(wayid) from ways where wayid = \"%1\"");
+  QSqlQuery select (geoBase);
+  bool ok = select.exec (cmd.arg (wayId));
+  if (ok) {
+    int count = select.value(0).toInt();
+    return count > 0;
+  }
+  return false;
+}
+
+bool
+DbManager::GetWayNodes (const QString & wayId,
+                        QStringList & nodeIdList)
+{
+  QString cmd ("select nodeid from waynodes where wayid = \"%1\"");
+  QSqlQuery select (geoBase);
+  bool ok = select.exec (cmd.arg (wayId));
+  if (!ok) {
+    return false;
+  }
+  nodeIdList.clear ();
+  while (select.next()) {
+    QString nodeId (select.value(0).toString());
+    nodeIdList.append (nodeId);
+  }
+  return true;
 }
 
 void

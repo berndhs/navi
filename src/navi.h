@@ -26,10 +26,12 @@
 #include "config-edit.h"
 #include "helpview.h"
 #include "db-manager.h"
+#include "navi-types.h"
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QDomNode>
+#include <QMap>
 
 class QApplication;
 
@@ -70,6 +72,7 @@ private slots:
   void SaveResponse ();
   void ReadXML ();
   void SaveSql ();
+  void SendNext ();
 
 private:
 
@@ -84,13 +87,20 @@ private:
     QMap <QString, QString>  attributes;
   };
 
+  typedef QMap <QString, NaviNode>   NodeMapType;
+  typedef QPair <QString, QString>   AttrType;
+  typedef QList <AttrType>           AttrList;
+
   void Connect ();
   void CloseCleanup ();
   void SetDefaults ();
-  void ShowWay (const QDomNode & node);
-  void SaveNodesSql (QDomDocument & doc);
-  void SaveWaysSql (QDomDocument & doc);
+  void SendRequest (double west, double east, double south, double north);
+  void ProcessWay (const QDomNode & node);
+  void SaveNodesSql ();
+  void SaveWaysSql ();
   void ProcessData (QByteArray & data);
+  void BuildWayParcels (const QString & wayId, 
+                        const QStringList & nodeIdList);
 
   bool             initDone;
   QApplication    *app;
@@ -102,12 +112,23 @@ private:
   deliberate::HelpView        *helpView;
   bool             runAgain;
 
-  DbManager               db;
-  QNetworkAccessManager   network;
-  QNetworkReply          *reply;
+  DbManager                    db;
+  QNetworkAccessManager        network;
+  QNetworkReply               *reply; 
+  double                       southEnd;
+  double                       minSouth;
+  double                       eastEnd;
+  double                       westEnd;
+  double                       northEnd;
+  double                       latStep;
+  double                       lonStep;
+  bool                         useNetwork;
+  QString                      lastUrl;
 
-  QByteArray   responseBytes;
-
+  QByteArray                   responseBytes;
+  NodeMapType                  nodeMap;
+  QMap <QString, AttrList>     wayAttrMap;
+  QMap <QString, QStringList>  wayNodes;
 };
 
 } // namespace

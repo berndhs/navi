@@ -25,6 +25,7 @@
 #include "deliberate.h"
 #include "version.h"
 #include "helpview.h"
+#include "navi-global.h"
 #include <QSize>
 #include <QDebug>
 #include <QMessageBox>
@@ -53,7 +54,9 @@ Navi::Navi (QWidget *parent)
    helpView (0),
    runAgain (false),
    db (this),
-   network (this)
+   network (this),
+   latStep (1.0/60.0),   // 1 arc minute
+   lonStep (1.0/60.0)    // 1 arc minute
 {
   mainUi.setupUi (this);
   mainUi.actionRestart->setEnabled (false);
@@ -100,27 +103,11 @@ Navi::Run ()
 void
 Navi::SetDefaults ()
 {
-  QString server ("xapi.openstreetmap.org");
+  QString server ("api.openstreetmap.org");
   server = Settings().value ("defaults/server",server).toString();
   Settings ().setValue ("defaults/server",server);
-  double lat (41.89);
-  lat = Settings().value ("defaults/latitude",lat).toDouble();
-  Settings().setValue ("defaults/latitude",lat);
-  double lon (12.491);
-  lon = Settings().value ("defaults/longitude",lon).toDouble();
-  Settings().setValue ("defaults/longitude",lon);
-  double lonRange (0.5);
-  lonRange = Settings().value ("defaults/longrange",lonRange).toDouble();
-  Settings().setValue ("defaults/longrange",lonRange);
-  double latRange (0.6);
-  latRange = Settings().value ("defaults/latrange",latRange).toDouble();
-  Settings().setValue ("defaults/latrange",latRange);
   Settings().sync();
   mainUi.serverEdit->setText (server);
-  mainUi.lonValue->setValue (lon);
-  mainUi.latValue->setValue (lat);
-  mainUi.latRange->setValue (latRange);
-  mainUi.lonRange->setValue (lonRange);
 }
 
 void
@@ -229,27 +216,47 @@ Navi::License ()
 void
 Navi::ReadButton ()
 {
-  double lat = mainUi.latValue->value ();
-  double lon = mainUi.lonValue->value ();
+  southEnd = mainUi.southValue->value();
+  minSouth = southEnd;
+  northEnd = mainUi.northValue->value();
+  eastEnd = mainUi.eastValue->value ();
+  westEnd = mainUi.westValue->value ();
+  useNetwork = true;
+  SendRequest (westEnd, westEnd + lonStep,
+               southEnd, southEnd + latStep);
+}
+
+void
+Navi::SendNext ()
+{
+  southEnd += latStep;
+  if (southEnd > northEnd) {
+    southEnd = minSouth;
+    westEnd += lonStep;
+  }
+  if (westEnd < eastEnd && southEnd < northEnd) {
+    SendRequest (westEnd, westEnd + lonStep,
+                 southEnd, southEnd + latStep);
+  }
+}
+
+void
+Navi::SendRequest (double west, double east, double south, double north)
+{
   QUrl url;
   url.setScheme ("http");
   url.setHost (mainUi.serverEdit->text());
   url.setPath ("api/0.6/map");
-  double partMinLat = mainUi.latRange->value() / 60.0;
-  double partMinLon = mainUi.lonRange->value() / 60.0;
-  double left = lon - partMinLon;
-  double right = lon + partMinLon;
-  double top = lat + partMinLat;
-  double bot = lat - partMinLat;
   url.addQueryItem (QString ("bbox"),QString ("%1,%2,%3,%4")
-                                      .arg (left).arg (bot)
-                                      .arg (right).arg (top));
+                                      .arg (west).arg (south)
+                                      .arg (east).arg (north));
   
   QNetworkRequest  req (url);
   reply = network.get (req);
   mainUi.logDisplay->append ("---------------------------------");
   mainUi.logDisplay->append (QString ("requested: %1")
                                .arg (req.url().toString()));
+  lastUrl = req.url().toString();
   mainUi.logDisplay->append (":");
 }
 
@@ -262,6 +269,9 @@ Navi::HandleReply (QNetworkReply * reply)
   mainUi.logDisplay->append (reply->url().toString());
  // mainUi.logDisplay->append (QString (data));
   ProcessData (responseBytes);
+  if (useNetwork) {
+    SaveSql ();
+  }
   mainUi.logDisplay->append ("^^^^^^^^^^");
 }
 
@@ -269,17 +279,32 @@ void
 Navi::ProcessData (QByteArray & data)
 {
   QDomDocument replyDoc;
+  nodeMap.clear ();
+  wayNodes.clear ();
+  wayAttrMap.clear ();
   replyDoc.setContent (data);
+  QDomNodeList  nodes = replyDoc.elementsByTagName ("node");
+  for (int i=0; i<nodes.count(); i++) {
+    QDomNode node = nodes.at(i);
+    if (node.isElement ()) {
+      QDomElement elt = node.toElement();
+      QString id = elt.attribute ("id");
+      double dlat = elt.attribute ("lat").toDouble();
+      double dlon = elt.attribute ("lon").toDouble();
+      nodeMap[id] = NaviNode (id,dlat,dlon);
+    } else {
+      mainUi.logDisplay->append ("Way Node not an Element");
+    }
+  }
   QDomNodeList  ways = replyDoc.elementsByTagName ("way");
   for (int i=0; i< ways.count(); i++) {
-    ShowWay (ways.item(i));
+    ProcessWay (ways.item(i));
   }
 }
 
 void
-Navi::ShowWay (const QDomNode & node)
+Navi::ProcessWay (const QDomNode & node)
 {
-  Highway  highway;
   QDomNodeList kids = node.childNodes ();
   QString id;
   if (node.isElement ()) {
@@ -288,38 +313,27 @@ Navi::ShowWay (const QDomNode & node)
   } else {
     mainUi.logDisplay->append ("Way Node not an Element");
   }
+qDebug () << " Processing Way " << id;
+  QStringList nodeIdList;
+  AttrList    attrList;
   for (int k=0; k<kids.count(); k++) {
     QDomNode kid = kids.item(k);
     if (kid.isElement()) {
       QDomElement kidElt = kid.toElement();
-      if (kidElt.tagName() == "tag") {
+      QString tagName = kidElt.tagName();
+      if (tagName == "tag") {
         QString key = kidElt.attribute("k");
         QString val = kidElt.attribute("v");
-        if (key == "highway") {
-          highway.kind = val;
-          highway.ishighway = true;
-        } else if (key == "name") {
-          highway.name = val;
-        }
-        highway.attributes[key] = val;
-      } 
+        AttrType wayAttr (key,val);
+        attrList.append (wayAttr);
+      } else if (tagName == "nd") {
+        QString nodeId = kidElt.attribute ("ref");
+        nodeIdList.append (nodeId);
+      }
     }
   }
-  if (highway.ishighway) {
-    mainUi.logDisplay->append (tr ("Highway %1 is %2")
-                                .arg (highway.name)
-                                .arg (highway.kind));
-    QMap<QString, QString>::iterator mit;
-    for (mit = highway.attributes.begin();
-         mit != highway.attributes.end();
-         mit++) {
-      mainUi.logDisplay->append (tr ("  attr %1 = \"%2\"")
-                                  .arg (mit.key())
-                                  .arg (mit.value ()));
-    }
-  } else {
-    mainUi.logDisplay->append (tr("ignore non-highway Way %1").arg(id));
-  }
+  wayNodes [id] = nodeIdList;
+  wayAttrMap [id] = attrList;
 }
 
 void
@@ -338,6 +352,7 @@ Navi::SaveResponse ()
 void
 Navi::ReadXML ()
 {
+  useNetwork = false;
   QString filename = QFileDialog::getOpenFileName (this, "Read XML File");
   if (filename.length() < 1) {
     return;
@@ -358,34 +373,29 @@ Navi::ReadXML ()
 void
 Navi::SaveSql ()
 {
-  QDomDocument replyDoc;
-  replyDoc.setContent (responseBytes);
-  SaveNodesSql (replyDoc);
-  SaveWaysSql (replyDoc);
+  mainUi.logDisplay->append ("start saving nodes");
+  SaveNodesSql ();
+  mainUi.logDisplay->append ("start saving ways");
+  SaveWaysSql ();
+  mainUi.logDisplay->append (QString ("done with %1").arg(lastUrl));
+  if (useNetwork) {
+    QTimer::singleShot (100, this, SLOT (SendNext()));
+  }
 }
 
 void
-Navi::SaveNodesSql (QDomDocument & doc)
+Navi::SaveNodesSql ()
 {
-  QDomNodeList  nodes = doc.elementsByTagName ("node");
   int saved (0);
   db.StartTransaction ();
   QTime clock;
   clock.start ();
-  for (int i=0; i< nodes.count(); i++) {
-    QDomNode node = nodes.at(i);
-    if (node.isElement()) {
-      QDomElement elt = node.toElement();
-      QString id = elt.attribute ("id");
-      QString slat = elt.attribute ("lat");
-      QString slon = elt.attribute ("lon");
-      if (id.length() > 0 && slat.length() > 0 && slon.length() > 0) {
-        double dlat = slat.toDouble ();
-        double dlon = slon.toDouble ();
-        db.WriteNode (id, dlat, dlon);
-        saved++;
-      }
-    }
+  NodeMapType::iterator nit;
+  for (nit=nodeMap.begin(); nit!= nodeMap.end(); nit++) {
+    NaviNode node = *nit;
+    db.WriteNode (node.Id(), node.Lat(), node.Lon());
+    db.WriteNodeParcel (node.Id(), Parcel::Index (node.Lat(),node.Lon()));
+    saved++;
   }
   db.CommitTransaction ();
   int msecs = clock.elapsed();
@@ -395,42 +405,33 @@ Navi::SaveNodesSql (QDomDocument & doc)
 }
 
 void
-Navi::SaveWaysSql (QDomDocument & doc)
+Navi::SaveWaysSql ()
 {
-  QDomNodeList  ways = doc.elementsByTagName ("way");
   int savedid (0);
   int savedtag (0);
   int savednode (0);
   db.StartTransaction ();
   QTime clock;
   clock.start ();
-  for (int i=0; i< ways.count(); i++) {
-    QString wayid;
-    QDomNode way = ways.at(i);
-    if (way.isElement ()) {
-      QDomElement elt = way.toElement();
-      wayid = elt.attribute ("id");
-      db.WriteWay (wayid);
-      savedid ++;
-    } else {
-      continue;
+  QMap<QString, QStringList>::iterator wit;
+  for (wit=wayNodes.begin(); wit!=wayNodes.end(); wit++) {
+    QString wayId = wit.key();
+    db.WriteWay (wayId);
+    savedid++;
+    BuildWayParcels (wayId, *wit);  
+    for (int n=0; n<wit->count(); n++) {
+      db.WriteWayNode (wayId, wit->at(n));
+      savednode++;
     }
-    QDomNodeList kids = way.childNodes();
-    for (int k=0; k<kids.count(); k++) {
-      QDomNode kid = kids.item(k);
-      if (kid.isElement()) {
-        QDomElement kidElt = kid.toElement();
-        if (kidElt.tagName() == "tag") {
-          QString key = kidElt.attribute("k");
-          QString val = kidElt.attribute("v");
-          db.WriteWayTag (wayid, key, val);
-          savedtag ++;
-        } else if (kidElt.tagName() == "nd") {
-          QString nodeid = kidElt.attribute ("ref");
-          db.WriteWayNode (wayid,nodeid);
-          savednode ++;
-        }
-      }
+  }
+  QMap<QString, AttrList>::iterator ait;
+  for (ait=wayAttrMap.begin(); ait!=wayAttrMap.end (); ait++) {
+    QString wayId = ait.key();
+    int count = ait->count();
+    for (int i=0; i<count; i++) {
+      AttrType  attr = ait->at(i);
+      db.WriteWayTag (wayId, attr.first, attr.second);
+      savedtag++;
     }
   }
   db.CommitTransaction ();
@@ -441,6 +442,27 @@ Navi::SaveWaysSql (QDomDocument & doc)
                             .arg (savedtag)
                             .arg (savednode)
                             .arg (msecs));
+}
+
+void
+Navi::BuildWayParcels (const QString & wayId, 
+                       const QStringList & nodeIdList)
+{
+  QStringList nodeList = wayNodes[wayId];
+  //db.StartTransaction ();
+  for (int n=0; n<nodeIdList.count (); n++) {
+    double lat, lon;
+    QString nodeId = nodeIdList.at(n);
+    if (nodeMap.contains (nodeId))  {
+      NaviNode node = nodeMap[nodeId];
+      lat = node.Lat();
+      lon = node.Lon();
+qDebug () << " way parcel node " << wayId << nodeId;
+      db.WriteWayParcel (wayId, Parcel::Index (lat, lon));
+    }
+  }
+  
+  //db.CommitTransaction ();
 }
 
 
