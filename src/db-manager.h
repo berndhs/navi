@@ -69,6 +69,12 @@ public:
                 QStringList & nodeIdList);
   bool GetWays (quint64 parcelIndex,
                 QStringList & wayIdList);
+  bool GetNodeTag (const QString & nodeid,
+                   const QString & tagKey,
+                         QString & tagValue);
+  bool GetWayTag (const QString & wayId,
+                  const QString & tagKey,
+                        QString & tagValue);
 
 public slots:
 
@@ -99,6 +105,10 @@ private:
   bool GetItems (quint64 parcelIndex,
                  const QString & type,
                  QStringList & idList);
+  bool GetTag (const QString & type,
+               const QString & id, 
+               const QString & key,
+                     QString & value);
 
   QSqlDatabase  geoBase;
   bool          dbRunning;

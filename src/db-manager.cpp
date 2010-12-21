@@ -202,6 +202,39 @@ DbManager::WriteTag (const QString & type,
   qDebug () << " query " << ok << insert.executedQuery ();
 }
 
+bool
+DbManager::GetNodeTag (const QString & nodeId,
+                      const QString & tagKey,
+                            QString & tagValue)
+{
+  return GetTag ("way",nodeId,tagKey,tagValue);
+}
+
+bool
+DbManager::GetWayTag (const QString & wayId,
+                      const QString & tagKey,
+                            QString & tagValue)
+{
+  return GetTag ("way",wayId,tagKey,tagValue);
+}
+
+bool
+DbManager::GetTag (const QString & type,
+                   const QString & id,
+                   const QString & key,
+                         QString & value)
+{
+  QString cmd ("select value from %1tags where %1id=\"%2\" "
+                " AND key=\"%3\"");
+  QSqlQuery select (geoBase);
+  bool ok = select.exec (cmd.arg(type).arg(id).arg(key));
+  if (ok && select.next()) {
+    value = select.value(0).toString();
+    return true;
+  }
+  return false;
+}
+
 void
 DbManager::WriteNodeParcel (const QString & nodeId, 
                             quint64 parcelIndex)

@@ -209,7 +209,14 @@ NvRoute::FindButton ()
   mainUi.logDisplay->append (QString ("GetWay was %1").arg(ok));
   mainUi.logDisplay->append (QString ("  have %1 ways:").arg(nways));
   for (int w=0; w<nways; w++) {
-    mainUi.logDisplay->append (QString ("  Way %1").arg(wayList.at(w)));
+    QString wayId = wayList.at(w);
+    QString name ("not named");
+    bool hasName = db.GetWayTag (wayId, "name",name);
+    if (hasName) {
+      mainUi.logDisplay->append (QString ("  Way %1 %2")
+                              .arg(wayId)
+                              .arg(name));
+    }
   }
   mainUi.logDisplay->append ("---------");
 }
