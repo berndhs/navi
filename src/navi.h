@@ -119,6 +119,7 @@ private:
   double                       minSouth;
   double                       eastEnd;
   double                       westEnd;
+  double                       minWest;
   double                       northEnd;
   double                       latStep;
   double                       lonStep;

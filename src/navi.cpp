@@ -378,6 +378,12 @@ Navi::SaveSql ()
   mainUi.logDisplay->append ("start saving ways");
   SaveWaysSql ();
   mainUi.logDisplay->append (QString ("done with %1").arg(lastUrl));
+  int percentLat = qRound (((southEnd - minSouth) 
+                           / (northEnd - minSouth)) * 100.0);
+  int percentLon = qRound (((minWest - westEnd)
+                           / (minWest - eastEnd)) * 100.0);
+  mainUi.latProgress->setValue (percentLat);
+  mainUi.lonProgress->setValue (percentLon);
   if (useNetwork) {
     QTimer::singleShot (100, this, SLOT (SendNext()));
   }
