@@ -131,6 +131,7 @@ private:
   QByteArray                   responseBytes;
   NodeMapType                  nodeMap;
   QMap <QString, AttrList>     wayAttrMap;
+  QMap <QString, AttrList>     nodeAttrMap;
   QMap <QString, QStringList>  wayNodes;
 };
 

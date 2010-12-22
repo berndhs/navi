@@ -242,7 +242,7 @@ qDebug () << " SendNext autoGet " << autoGet;
     southEnd = minSouth;
     westEnd += lonStep;
   }
-  if (westEnd < eastEnd && southEnd < northEnd) {
+  if (westEnd < eastEnd || southEnd < northEnd) {
     SendRequest (westEnd, westEnd + lonStep,
                  southEnd, southEnd + latStep);
   } else {
@@ -293,6 +293,7 @@ Collect::ProcessData (QByteArray & data)
   nodeMap.clear ();
   wayNodes.clear ();
   wayAttrMap.clear ();
+  nodeAttrMap.clear ();
   replyDoc.setContent (data);
   QDomNodeList  nodes = replyDoc.elementsByTagName ("node");
   for (int i=0; i<nodes.count(); i++) {
@@ -303,6 +304,22 @@ Collect::ProcessData (QByteArray & data)
       double dlat = elt.attribute ("lat").toDouble();
       double dlon = elt.attribute ("lon").toDouble();
       nodeMap[id] = NaviNode (id,dlat,dlon);
+      QDomNodeList kids = node.childNodes ();
+      AttrList attrList;
+      for (int k=0;k<kids.count();k++) {
+        QDomNode kid = kids.item(k);
+        if (kid.isElement()) {
+          QDomElement kidElt = kid.toElement();
+          QString tagName = kidElt.tagName();
+          if (tagName == "tag") {
+            QString key = kidElt.attribute("k");
+            QString val = kidElt.attribute("v");
+            AttrType nodeAttr (key,val);
+            attrList.append (nodeAttr);
+          }
+        }
+      }
+      nodeAttrMap [id] = attrList;
     } else {
       mainUi.logDisplay->append ("Way Node not an Element");
     }
@@ -418,6 +435,15 @@ Collect::SaveNodesSql ()
     db.WriteNode (node.Id(), node.Lat(), node.Lon());
     db.WriteNodeParcel (node.Id(), Parcel::Index (node.Lat(),node.Lon()));
     saved++;
+  }
+  QMap <QString, AttrList>::iterator mit;
+  for (mit=nodeAttrMap.begin(); mit!= nodeAttrMap.end(); mit++) {
+    QString nodeId = mit.key();
+    int count = mit->count();
+    for (int a=0; a<count; a++) {
+      AttrType attr = mit->at(a);
+      db.WriteNodeTag (nodeId, attr.first, attr.second);
+    }
   }
   db.CommitTransaction ();
   int msecs = clock.elapsed();
