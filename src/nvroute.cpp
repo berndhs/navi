@@ -244,6 +244,9 @@ NvRoute::ListWayDetails (const QString & wayId)
   QString highwayType ("?");
   bool isHighway = db.GetWayTag (wayId, "highway", highwayType);
   labels << highwayType;
+  QString houseNumber ("no number");
+  bool hasNumber = db.GetWayTag (wayId, "addr:housenumber", houseNumber);
+  labels << houseNumber;
   
   QTreeWidgetItem *wayItem = new QTreeWidgetItem (tree, labels);
   QStringList nodeList;
@@ -254,17 +257,38 @@ NvRoute::ListWayDetails (const QString & wayId)
     for (int n=0; n<nodeList.count(); n++) {
       nodeItem = new QTreeWidgetItem;
       QString nodeId = nodeList.at (n);
-      nodeItem->setText (0,nodeId);
-      double lat, lon;
-      bool haveCoord = db.GetNode (nodeId, lat, lon);
-      if (haveCoord) {
-        nodeItem->setText (1,QString::number (lat));
-        nodeItem->setText (2,QString::number (lon));
-      }
+      ListNodeDetails (nodeItem, nodeId);
       itemList.append (nodeItem);
     } 
     wayItem->addChildren (itemList);
   }
+}
+
+void
+NvRoute::ListNodeDetails (QTreeWidgetItem * nodeItem,
+                          const QString & nodeId)
+{
+  nodeItem->setText (0,nodeId);
+  double lat, lon;
+  bool haveCoord = db.GetNode (nodeId, lat, lon);
+  if (haveCoord) {
+    nodeItem->setText (1,QString::number (lat));
+    nodeItem->setText (2,QString::number (lon));
+  }
+  QList <QPair <QString, QString> > tagList;
+  db.GetNodeTags (nodeId, tagList);
+  QList <QPair <QString, QString> >::iterator lit;
+  QList <QTreeWidgetItem*> itemList;
+  mainUi.logDisplay->append (QString("Node %1 has %2 tags")
+                             .arg (nodeId)
+                             .arg (tagList.count()));
+  for (lit=tagList.begin(); lit!=tagList.end(); lit++) {
+    QTreeWidgetItem * item = new QTreeWidgetItem;
+    item->setText (0,lit->first);
+    item->setText (1,lit->second);
+    itemList.append (item);
+  }
+  nodeItem->addChildren (itemList);
 }
 
 

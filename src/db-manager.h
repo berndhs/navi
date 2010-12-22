@@ -26,6 +26,8 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QObject>
+#include <QPair>
+#include <QList>
 
 namespace navi
 {
@@ -72,9 +74,13 @@ public:
   bool GetNodeTag (const QString & nodeid,
                    const QString & tagKey,
                          QString & tagValue);
+  bool GetNodeTags (const QString & nodeId,
+                         QList<QPair <QString,QString> > & tagList);
   bool GetWayTag (const QString & wayId,
                   const QString & tagKey,
                         QString & tagValue);
+  bool GetWayTags (const QString & wayId,
+                        QList <QPair <QString, QString> > & tagList);
 
 public slots:
 
@@ -109,6 +115,9 @@ private:
                const QString & id, 
                const QString & key,
                      QString & value);
+  bool GetTags (const QString & type,
+                const QString & id,
+                      QList<QPair <QString, QString> >  & list);
 
   QSqlDatabase  geoBase;
   bool          dbRunning;

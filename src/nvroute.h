@@ -34,6 +34,7 @@
 #include <QMap>
 
 class QApplication;
+class QTreeWidgetItem;
 
 using namespace deliberate;
 
@@ -76,6 +77,8 @@ private:
   void CloseCleanup ();
   void SetDefaults ();
   void ListWayDetails (const QString & wayId);
+  void ListNodeDetails (QTreeWidgetItem * item,
+                        const QString & nodeId);
 
   bool             initDone;
   QApplication    *app;

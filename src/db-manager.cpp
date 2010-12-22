@@ -235,6 +235,41 @@ DbManager::GetTag (const QString & type,
   return false;
 }
 
+bool
+DbManager::GetNodeTags (const QString & nodeId,
+                              QList <QPair <QString, QString> > & tagList)
+{
+  return GetTags ("node", nodeId, tagList);
+}
+
+bool
+DbManager::GetWayTags (const QString & wayId,
+                              QList <QPair <QString, QString> > & tagList)
+{
+  return GetTags ("way", wayId, tagList);
+}
+
+bool
+DbManager::GetTags (const QString & type,
+                    const QString & id,
+                          QList <QPair<QString, QString> > & list)
+{
+  QString cmd ("select key,value from %1tags where %1id=\"%2\"");
+  QSqlQuery  select (geoBase);
+  bool ok = select.exec (cmd.arg (type).arg (id));
+  if (!ok) {
+    return false;
+  }
+  list.clear ();
+  while (select.next ()) {
+    QString key = select.value(0).toString();
+    QString value = select.value(1).toString();
+    QPair <QString,QString> entry (key,value);
+    list.append (entry);
+  }
+  return true;
+}
+
 void
 DbManager::WriteNodeParcel (const QString & nodeId, 
                             quint64 parcelIndex)
