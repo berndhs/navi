@@ -72,6 +72,7 @@ public:
                   quint64 parcelIndex);
   bool GetNode (const QString & nodeId, double & lat, double & lon);
   bool HaveWay (const QString & wayId);
+  bool HaveRelation (const QString & relId);
   bool GetWayNodes (const QString & wayId,
                  QStringList & nodeIdList);
   bool GetNodes (quint64 parcelIndex,
@@ -88,6 +89,14 @@ public:
                         QString & tagValue);
   bool GetWayTags (const QString & wayId,
                         QList <QPair <QString, QString> > & tagList);
+  bool GetRelationTags (const QString & relId,
+                        QList <QPair <QString, QString> > & tagList);
+  bool GetRelationMembers (const QString & relId,
+                           const QString & type,
+                           QStringList & refList);
+  void GetRelations (const QString & otherId,
+                     const QString & type,
+                        QStringList & relIdList);
 
 public slots:
 

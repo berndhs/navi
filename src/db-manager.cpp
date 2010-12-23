@@ -30,6 +30,7 @@
 #include <QFileDialog>
 #include <QSqlQuery>
 #include <QSqlRecord>
+#include <QSqlError>
 #include <QDateTime>
 #include <QApplication>
 #include <QClipboard>
@@ -246,6 +247,7 @@ DbManager::GetWayTag (const QString & wayId,
   return GetTag ("way",wayId,tagKey,tagValue);
 }
 
+
 bool
 DbManager::GetTag (const QString & type,
                    const QString & id,
@@ -278,6 +280,13 @@ DbManager::GetWayTags (const QString & wayId,
 }
 
 bool
+DbManager::GetRelationTags (const QString & relId,
+                              QList <QPair <QString, QString> > & tagList)
+{
+  return GetTags ("relation", relId, tagList);
+}
+
+bool
 DbManager::GetTags (const QString & type,
                     const QString & id,
                           QList <QPair<QString, QString> > & list)
@@ -296,6 +305,52 @@ DbManager::GetTags (const QString & type,
     list.append (entry);
   }
   return true;
+}
+
+bool
+DbManager::GetRelationMembers (const QString & relId,
+                              const QString & type,
+                              QStringList & refList)
+{
+  QString cmd ("select otherid from relationparts "
+               " where relationid =\"%1\""
+               " AND othertype =\"%2\"");
+  QSqlQuery select (geoBase);
+  QString realCmd = cmd.arg(relId).arg(type);
+  bool ok = select.exec (realCmd);
+  qDebug () << " query cmd was " << realCmd;
+  qDebug () << " query " << ok << select.executedQuery ();
+  qDebug () << "      last error " << select.lastError().text();
+  if (!ok) {
+    return false;
+  }
+  refList.clear ();
+  while (select.next()) {
+    refList.append (select.value(0).toString());
+  }
+  return true;
+}
+
+void
+DbManager::GetRelations (const QString & otherId, 
+                            const QString & type,
+                            QStringList & relIdList)
+{
+  QString cmd ("select relationid from relationparts "
+               " where othertype=\"%1\" and otherid = \"%2\"");
+  QSqlQuery select (geoBase);
+  QString realCmd = cmd.arg(type).arg(otherId);
+  bool ok = select.exec (realCmd);
+  qDebug () << " query cmd was " << realCmd;
+  qDebug () << " query " << ok << select.executedQuery ();
+  qDebug () << "      last error " << select.lastError().text();
+  relIdList.clear ();
+  if (!ok) {
+    return;
+  }
+  while (select.next ()) {
+    relIdList.append (select.value(0).toString());
+  }
 }
 
 void
@@ -407,6 +462,20 @@ DbManager::HaveWay (const QString & wayId)
   QString cmd ("select count(wayid) from ways where wayid = \"%1\"");
   QSqlQuery select (geoBase);
   bool ok = select.exec (cmd.arg (wayId));
+  if (ok) {
+    int count = select.value(0).toInt();
+    return count > 0;
+  }
+  return false;
+}
+
+bool
+DbManager::HaveRelation (const QString & relId)
+{
+  QString cmd ("select count(relationid) from relations "
+              " where relationid = \"%1\"");
+  QSqlQuery select (geoBase);
+  bool ok = select.exec (cmd.arg (relId));
   if (ok) {
     int count = select.value(0).toInt();
     return count > 0;

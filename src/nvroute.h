@@ -69,6 +69,8 @@ private slots:
   void Exiting ();
 
   void FindButton ();
+  void ParcelButton ();
+  void FindWays ();
 
 private:
 
@@ -79,6 +81,8 @@ private:
   void ListWayDetails (const QString & wayId);
   void ListNodeDetails (QTreeWidgetItem * item,
                         const QString & nodeId);
+  void ListRelations ();
+  void FindParcel (quint64 parcel);
 
   bool             initDone;
   QApplication    *app;
@@ -91,6 +95,12 @@ private:
   bool             runAgain;
 
   DbManager                    db;
+
+  QSet<QString>   nodeSet;
+  QSet<QString>   waySet;
+  QSet<QString>   relationSet;
+  QStringList     wayList;
+  quint64         parcelIndex;
 
 };
 
