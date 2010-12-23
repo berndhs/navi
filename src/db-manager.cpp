@@ -76,7 +76,10 @@ DbManager::Start ()
                 << "waytags"
                 << "waynodes"
                 << "nodeparcels"
-                << "wayparcels";
+                << "wayparcels"
+                << "relations"
+                << "relationparts"
+                << "relationtags";
 
   CheckDBComplete (geoBase, eventElements);
 
@@ -185,6 +188,14 @@ DbManager::WriteWayTag (const QString & wayId,
 }
 
 void
+DbManager::WriteRelationTag (const QString & relId,
+                     const QString & key,
+                     const QString & value)
+{
+  WriteTag ("relation", relId, key, value);
+}
+
+void
 DbManager::WriteTag (const QString & type,
                      const QString & id,
                      const QString & key,
@@ -200,6 +211,23 @@ DbManager::WriteTag (const QString & type,
   insert.bindValue (2,QVariant(value));
   bool ok = insert.exec ();
   qDebug () << " query " << ok << insert.executedQuery ();
+}
+
+void
+DbManager::WriteRelationMember (const QString & relId,
+                                const QString & type,
+                                const QString & ref)
+{
+  QString cmd ("insert or replace into relationparts "
+               "  (relationid, othertype, otherid) "
+               " VALUES (?, ?, ?) ");
+  QSqlQuery insert (geoBase);
+  insert.prepare (cmd);
+  insert.bindValue (0,QVariant (relId));
+  insert.bindValue (1,QVariant (type));
+  insert.bindValue (2,QVariant (ref));
+  bool ok = insert.exec ();
+  qDebug () << " RelMember insert " << ok << insert.executedQuery ();
 }
 
 bool
@@ -326,6 +354,19 @@ DbManager::WriteWay (const QString & wayId)
   QSqlQuery insert (geoBase);
   insert.prepare (cmd);
   insert.bindValue (0, QVariant(wayId));
+  bool ok = insert.exec ();
+  qDebug () << " query " << ok << insert.executedQuery ();
+}
+
+void
+DbManager::WriteRelation (const QString & relId)
+{
+  QString cmd ("insert or replace into relations "
+               " (relationid) "
+               " VALUES (?) ");
+  QSqlQuery insert (geoBase);
+  insert.prepare (cmd);
+  insert.bindValue (0, QVariant(relId));
   bool ok = insert.exec ();
   qDebug () << " query " << ok << insert.executedQuery ();
 }

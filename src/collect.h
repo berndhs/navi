@@ -32,6 +32,7 @@
 #include <QNetworkReply>
 #include <QDomNode>
 #include <QMap>
+#include <QTime>
 
 class QApplication;
 
@@ -73,6 +74,11 @@ private slots:
   void ReadXML ();
   void SaveSql ();
   void SendNext ();
+  
+  void SaveSequence ();
+  void SaveNodesSql ();
+  void SaveWaysSql ();
+  void SaveRelationsSql ();
 
 private:
 
@@ -87,6 +93,15 @@ private:
     QMap <QString, QString>  attributes;
   };
 
+  enum Save_Stage {
+    Stage_None = 0,
+    Stage_Nodes = 1,
+    Stage_Ways = 2,
+    Stage_Relations = 3,
+    Stage_Final = 4,
+    Stage_Done
+  };
+
   typedef QMap <QString, NaviNode>   NodeMapType;
   typedef QPair <QString, QString>   AttrType;
   typedef QList <AttrType>           AttrList;
@@ -94,14 +109,18 @@ private:
   void Connect ();
   void CloseCleanup ();
   void SetDefaults ();
+  void ContinueSequence ();
   void SendRequest (double west, double east, double south, double north);
+  void ProcessNodes (QDomDocument & doc);
+  void ProcessWays (QDomDocument & doc);
+  void ProcessRelations (QDomDocument & doc);
   void ProcessWay (const QDomNode & node);
-  void SaveNodesSql ();
-  void SaveWaysSql ();
+  void ProcessRelation (const QDomNode & node);
   void ProcessData (QByteArray & data);
   void BuildWayParcels (const QString & wayId, 
                         const QStringList & nodeIdList);
   void ShowProgress ();
+  void LogStatus (const QString & msg);
 
   bool             initDone;
   QApplication    *app;
@@ -126,12 +145,16 @@ private:
   double                       lonStep;
   bool                         useNetwork;
   bool                         autoGet;
+  Save_Stage                   saveStage;
   QString                      lastUrl;
+  QTime                        mClock;
 
   QByteArray                   responseBytes;
   NodeMapType                  nodeMap;
   QMap <QString, AttrList>     wayAttrMap;
   QMap <QString, AttrList>     nodeAttrMap;
+  QMap <QString, AttrList>     relationAttrMap;
+  QMap <QString, AttrList>     relationMembers;
   QMap <QString, QStringList>  wayNodes;
 };
 

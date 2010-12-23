@@ -51,6 +51,7 @@ public:
                         double  lon);
 
   void WriteWay (const QString & wayId);
+  void WriteRelation (const QString & relId);
   void WriteWayNode (const QString & wayId,
                      const QString & nodeId);
   void WriteNodeTag (const QString & nodeId, 
@@ -59,6 +60,12 @@ public:
   void WriteWayTag (const QString & wayId,
                     const QString & key,
                     const QString & value);
+  void WriteRelationTag (const QString & relId,
+                         const QString & key,
+                         const QString & value);
+  void WriteRelationMember (const QString & relId,
+                            const QString & type,
+                            const QString & ref);
   void WriteNodeParcel (const QString & nodeId, 
                    quint64 parcelIndex);
   void WriteWayParcel (const QString & wayId,

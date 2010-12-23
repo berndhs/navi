@@ -39,6 +39,7 @@
 #include <QDomNodeList>
 #include <QFileDialog>
 #include <QFile>
+#include <QTime>
 
 
 using namespace deliberate;
@@ -59,6 +60,7 @@ Collect::Collect (QWidget *parent)
    lonStep (1.0/60.0),    // 1 arc minute
    autoGet (false)
 {
+  mClock.start ();
   mainUi.setupUi (this);
   mainUi.actionRestart->setEnabled (false);
   helpView = new HelpView (this);
@@ -246,7 +248,7 @@ qDebug () << " SendNext autoGet " << autoGet;
     SendRequest (westEnd, westEnd + lonStep,
                  southEnd, southEnd + latStep);
   } else {
-    mainUi.logDisplay->append (QString("ALL DONE with final request %1")
+    LogStatus  (QString("ALL DONE with final request %1")
                                        .arg(lastUrl));
     ShowProgress ();
   }
@@ -265,25 +267,25 @@ Collect::SendRequest (double west, double east, double south, double north)
   
   QNetworkRequest  req (url);
   reply = network.get (req);
-  mainUi.logDisplay->append ("---------------------------------");
-  mainUi.logDisplay->append (QString ("requested: %1")
+  LogStatus  ("---------------------------------");
+  LogStatus  (QString ("requested: %1")
                                .arg (req.url().toString()));
   lastUrl = req.url().toString();
-  mainUi.logDisplay->append (":");
+  LogStatus  (":");
 }
 
 void
 Collect::HandleReply (QNetworkReply * reply)
 {
   responseBytes = reply->readAll ();
-  mainUi.logDisplay->append ("vvvvvvvvvvvv");
-  mainUi.logDisplay->append ("Received reply to ");
-  mainUi.logDisplay->append (reply->url().toString());
+  LogStatus  ("vvvvvvvvvvvv");
+  LogStatus  ("Received reply to ");
+  LogStatus  (reply->url().toString());
   ProcessData (responseBytes);
   if (autoGet && useNetwork) {
     QTimer::singleShot (75,this, SLOT(SaveSql ()));
   }
-  mainUi.logDisplay->append ("^^^^^^^^^^");
+  LogStatus  ("^^^^^^^^^^");
 }
 
 void
@@ -295,7 +297,15 @@ Collect::ProcessData (QByteArray & data)
   wayAttrMap.clear ();
   nodeAttrMap.clear ();
   replyDoc.setContent (data);
-  QDomNodeList  nodes = replyDoc.elementsByTagName ("node");
+  ProcessNodes (replyDoc);
+  ProcessWays (replyDoc);
+  ProcessRelations (replyDoc);
+}
+
+void
+Collect::ProcessNodes (QDomDocument & doc)
+{
+  QDomNodeList  nodes = doc.elementsByTagName ("node");
   for (int i=0; i<nodes.count(); i++) {
     QDomNode node = nodes.at(i);
     if (node.isElement ()) {
@@ -321,26 +331,42 @@ Collect::ProcessData (QByteArray & data)
       }
       nodeAttrMap [id] = attrList;
     } else {
-      mainUi.logDisplay->append ("Way Node not an Element");
+      LogStatus  ("Way Node not an Element");
     }
   }
-  QDomNodeList  ways = replyDoc.elementsByTagName ("way");
+}
+
+void
+Collect::ProcessWays (QDomDocument & doc)
+{
+  QDomNodeList  ways = doc.elementsByTagName ("way");
   for (int i=0; i< ways.count(); i++) {
     ProcessWay (ways.item(i));
   }
 }
 
 void
+Collect::ProcessRelations (QDomDocument & doc)
+{
+  QDomNodeList  relations = doc.elementsByTagName ("relation");
+  for (int i=0;i<relations.count(); i++) {
+    ProcessRelation (relations.at(i));
+  }
+}
+
+
+void
 Collect::ProcessWay (const QDomNode & node)
 {
-  QDomNodeList kids = node.childNodes ();
   QString id;
   if (node.isElement ()) {
     QDomElement elt = node.toElement();
     id = elt.attribute ("id");
   } else {
-    mainUi.logDisplay->append ("Way Node not an Element");
+    LogStatus  ("Way Node not an Element");
+    return;
   }
+  QDomNodeList kids = node.childNodes ();
   QStringList nodeIdList;
   AttrList    attrList;
   for (int k=0; k<kids.count(); k++) {
@@ -361,6 +387,46 @@ Collect::ProcessWay (const QDomNode & node)
   }
   wayNodes [id] = nodeIdList;
   wayAttrMap [id] = attrList;
+}
+
+void
+Collect::ProcessRelation (const QDomNode & node)
+{
+  QString id;
+  if (node.isElement ()) {
+    QDomElement elt = node.toElement();
+    id = elt.attribute ("id");
+  } else {
+    LogStatus  ("Relation Node not an Element");
+    return;
+  }
+  AttrList  memberList;
+  AttrList  tagList;
+  QDomNodeList kids = node.childNodes ();
+  for (int k=0; k<kids.count(); k++) {
+    QDomNode kid = kids.at(k);
+    if (!kid.isElement()) {
+      continue;
+    }
+    QDomElement kidElt = kid.toElement ();
+    QString tagName = kidElt.tagName();
+    if (tagName == "member") {
+      QString type = kidElt.attribute ("type");
+      QString ref = kidElt.attribute ("ref");
+      AttrType member (type,ref);
+      memberList.append (member);
+    } else if (tagName == "tag") {
+      QString key = kidElt.attribute ("k");
+      QString value = kidElt.attribute ("v");
+      AttrType tag (key,value);
+      tagList.append (tag);
+    } else {
+      LogStatus  (QString("unknown relation element %1")
+                                 .arg (tagName));
+    }
+  }
+  relationAttrMap [id] = tagList;
+  relationMembers [id] = memberList;
 }
 
 void
@@ -400,14 +466,55 @@ Collect::ReadXML ()
 void
 Collect::SaveSql ()
 {
-  mainUi.logDisplay->append ("start saving nodes");
-  SaveNodesSql ();
-  mainUi.logDisplay->append ("start saving ways");
-  SaveWaysSql ();
-  mainUi.logDisplay->append (QString ("done with %1").arg(lastUrl));
-  ShowProgress ();
-  if (autoGet && useNetwork) {
-    QTimer::singleShot (100, this, SLOT (SendNext()));
+  saveStage = Stage_Nodes;
+  QTimer::singleShot (100, this, SLOT (SaveSequence()));
+}
+
+void
+Collect::ContinueSequence ()
+{
+  saveStage = Save_Stage (((int) saveStage) + 1);
+  if (saveStage <= Stage_None || saveStage >= Stage_Done) {
+    saveStage = Stage_None;
+  } else {
+    QTimer::singleShot (100, this, SLOT (SaveSequence()));
+  }
+}
+
+void
+Collect::LogStatus (const QString & msg)
+{
+  mainUi.logDisplay->append (QString ("%1 - %2")
+                             .arg (mClock.elapsed()/1000.0, 10, 'f')
+                             .arg (msg));
+}
+
+void
+Collect::SaveSequence()
+{
+  LogStatus (QString ("Save Sequence stage %1").arg (saveStage));
+  switch (saveStage) {
+  case Stage_Nodes:
+    LogStatus ("%1 start saving nodes");
+    QTimer::singleShot (100, this, SLOT (SaveNodesSql ()));
+    break;
+  case Stage_Ways:
+    LogStatus ("start saving ways");
+    QTimer::singleShot (100, this, SLOT (SaveWaysSql ()));
+    break;
+  case Stage_Relations:
+    LogStatus  ("start saving relations");
+    QTimer::singleShot (100, this, SLOT (SaveRelationsSql ()));
+    break;
+  case Stage_Final:
+    LogStatus (QString ("done with %1").arg(lastUrl));
+    ShowProgress ();
+    saveStage = Stage_Done;
+    if (autoGet && useNetwork) {
+      QTimer::singleShot (100, this, SLOT (SendNext()));
+    }
+  default:
+    break;
   }
 }
 
@@ -447,9 +554,10 @@ Collect::SaveNodesSql ()
   }
   db.CommitTransaction ();
   int msecs = clock.elapsed();
-  mainUi.logDisplay->append (QString ("Saved %1 nodes in %2 msecs")
+  LogStatus  (QString ("Saved %1 nodes in %2 msecs")
                               .arg(saved)
                               .arg (msecs));
+  ContinueSequence ();
 }
 
 void
@@ -458,9 +566,9 @@ Collect::SaveWaysSql ()
   int savedid (0);
   int savedtag (0);
   int savednode (0);
-  db.StartTransaction ();
   QTime clock;
   clock.start ();
+  db.StartTransaction ();
   QMap<QString, QStringList>::iterator wit;
   for (wit=wayNodes.begin(); wit!=wayNodes.end(); wit++) {
     QString wayId = wit.key();
@@ -484,12 +592,55 @@ Collect::SaveWaysSql ()
   }
   db.CommitTransaction ();
   int msecs = clock.elapsed ();
-  mainUi.logDisplay->append (QString ("wrote %1 ways "
+  LogStatus  (QString ("wrote %1 ways "
                                       "%2 tags %3 nodes in %4 msecs")
                             .arg (savedid)
                             .arg (savedtag)
                             .arg (savednode)
                             .arg (msecs));
+  ContinueSequence ();
+}
+
+void
+Collect::SaveRelationsSql ()
+{
+  QMap<QString, AttrList>::iterator ait;
+  int savedIds (0);
+  int savedTags (0);
+  int savedMems (0);
+  QTime clock;
+  clock.start ();
+  db.StartTransaction ();
+  for (ait=relationAttrMap.begin(); ait!=relationAttrMap.end (); ait++) {
+    QString relId = ait.key();
+    db.WriteRelation (relId);
+    savedIds++;
+    for (int a=0; a<ait->count(); a++) {
+      AttrType attr = ait->at(a);
+      db.WriteRelationTag (relId, attr.first, attr.second);
+      savedTags++;
+    }
+  }
+  for (ait=relationMembers.begin(); ait != relationMembers.end(); ait++) {
+    QString relId = ait.key();
+    db.WriteRelation (relId);
+    for (int a=0; a<ait->count(); a++) {
+      AttrType member = ait->at(a);
+      QString  type = member.first;
+      QString  ref = member.second;
+      db.WriteRelationMember (relId, type, ref);
+      savedMems++;
+    }
+  }
+  db.CommitTransaction ();
+  int msecs = clock.elapsed ();
+  LogStatus  (QString ("wrote %1 relations "
+                                      "%2 tags %3 members in %4 msecs")
+                            .arg (savedIds)
+                            .arg (savedTags)
+                            .arg (savedMems)
+                            .arg (msecs));
+  ContinueSequence ();
 }
 
 void

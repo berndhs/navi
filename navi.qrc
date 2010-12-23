@@ -14,5 +14,8 @@
   <file alias="waynodes.sql">schema/waynodes.sql</file>
   <file alias="nodeparcels.sql">schema/nodeparcels.sql</file>
   <file alias="wayparcels.sql">schema/wayparcels.sql</file>
+  <file alias="relations.sql">schema/relations.sql</file>
+  <file alias="relationparts.sql">schema/relationparts.sql</file>
+  <file alias="relationtags.sql">schema/relationtags.sql</file>
 </qresource>
 </RCC>
