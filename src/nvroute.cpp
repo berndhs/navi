@@ -307,6 +307,19 @@ NvRoute::FindThings ()
                              .arg (nodeSet.count()));
   FindRelations ();
   FindNodes ();
+  QTreeWidgetItem * nodeListItem = new QTreeWidgetItem;
+  QList <QTreeWidgetItem*> itemList;
+  QTreeWidgetItem *nodeItem;
+  QSet <QString>::iterator nit;
+  for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
+    nodeItem = new QTreeWidgetItem;
+    QString nodeId = *nit;
+    ListNodeDetails (nodeItem, nodeId);
+    itemList.append (nodeItem);
+  } 
+  nodeListItem->addChildren (itemList);
+  nodeListItem->setText (0,tr("All Nodes"));
+  mainUi.wayTree->addTopLevelItem (nodeListItem);
   mainUi.logDisplay->append (tr("Number nodes after relations %1")
                              .arg (nodeSet.count()));
   mainUi.logDisplay->append (tr("number parcels to go %1")
