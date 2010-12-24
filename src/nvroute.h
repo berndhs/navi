@@ -71,6 +71,9 @@ private slots:
   void FindButton ();
   void ParcelButton ();
   void FindWays ();
+  void FindRelations ();
+  void FindThings ();
+  void FindNodes ();
 
 private:
 
@@ -82,7 +85,7 @@ private:
   void ListNodeDetails (QTreeWidgetItem * item,
                         const QString & nodeId);
   void ListRelations ();
-  void FindParcel (quint64 parcel);
+  void FindParcel (quint64 parcel, int round);
 
   bool             initDone;
   QApplication    *app;
@@ -101,6 +104,8 @@ private:
   QSet<QString>   relationSet;
   QStringList     wayList;
   quint64         parcelIndex;
+  QList<quint64>  indexList;
+  QTimer         *findTimer;
 
 };
 

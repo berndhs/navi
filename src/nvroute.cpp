@@ -50,11 +50,13 @@ NvRoute::NvRoute (QWidget *parent)
    configEdit (this),
    helpView (0),
    runAgain (false),
-   db (this)
+   db (this),
+   findTimer (0)
 {
   mainUi.setupUi (this);
   mainUi.actionRestart->setEnabled (false);
   helpView = new HelpView (this);
+  findTimer = new QTimer (this);
   Connect ();
 }
 
@@ -91,6 +93,7 @@ NvRoute::Run ()
   Settings().setValue ("sizes/main",newsize);
   show ();
   SetDefaults ();
+  connect (findTimer, SIGNAL (timeout()), this, SLOT (FindThings()));
   return true;
 }
 
@@ -219,7 +222,19 @@ qDebug () << "ParcelButton " << parcel;
   relationSet.clear ();
   mainUi.wayTree->clear();
   wayList.clear ();
-  FindParcel (parcel);
+  
+  findTimer->start (10000);
+  int round (0);
+  int extend = mainUi.extendedSize->value();
+  for (qint64 i= -extend; i <= extend; i++) {
+    for (qint64 j= -extend; j <= extend; j++) {
+      qint64 latOffset = i * Q_INT64_C (0x0100000000);
+      qint64 lonOffset = j * Q_INT64_C (1);
+      FindParcel (parcel + latOffset + lonOffset, round);
+      round ++;
+    }
+  }
+  QTimer::singleShot (100,this, SLOT (FindThings()));
 }
 
 void
@@ -237,8 +252,11 @@ qDebug () << "FindButton " << lat << lon;
   relationSet.clear ();
   mainUi.wayTree->clear();
   wayList.clear ();
-  for (int i=-1; i<2; i++) {
-    for (int j=-1; j<2; j++) {
+  findTimer->start (10000);
+  int round (0);
+  int extend = mainUi.extendedSize->value();
+  for (int i= -extend; i<=extend; i++) {
+    for (int j= -extend ; j<=extend; j++) {
       double dlat = lat + (double(i) * offset);
       double dlon = lon + (double(j) * offset);
       quint64 parcel = Parcel::Index (dlat,dlon);
@@ -249,20 +267,50 @@ qDebug () << "FindButton " << lat << lon;
                              .arg (QString::number(parcel,16));
       mainUi.logDisplay->append (msg);
 qDebug () << msg;
-      FindParcel (parcel);
+      FindParcel (parcel, round);
+      round++;
     }
   }
+  QTimer::singleShot (100,this, SLOT (FindThings));
 }
 
 void
-NvRoute::FindParcel (quint64 parcel)
+NvRoute::FindParcel (quint64 parcel, int round)
 {
   mainUi.logDisplay->append (QString ("looking for parcel %1")
                                .arg (parcel));
-  parcelIndex = parcel;
+  indexList.append ( parcel);
 qDebug () << "FindParcel want index " << parcelIndex;
-  QTimer::singleShot (100,this,SLOT (FindWays()));
-  QTimer::singleShot (70,this,SLOT(update()));
+}
+
+void
+NvRoute::FindThings ()
+{
+  qDebug () << "FindThings indexList has " 
+            << indexList.count() 
+            << " entries";
+  if (indexList.isEmpty()) {
+    findTimer->stop ();
+    mainUi.logDisplay->append ("no more parcelIndex on list");
+    qDebug () << " stopped findTimer";
+    return;
+  }
+  mainUi.wayTree->clear();
+  FindWays ();
+  QStringList nodeList;
+  parcelIndex = indexList.takeFirst();
+  qDebug () << " FindThings want index " << parcelIndex;
+  db.GetNodes (parcelIndex, nodeList);
+  QSet<QString> localNodes = nodeList.toSet();
+  nodeSet += localNodes;
+  mainUi.logDisplay->append (tr("Number nodes before relations %1")
+                             .arg (nodeSet.count()));
+  FindRelations ();
+  FindNodes ();
+  mainUi.logDisplay->append (tr("Number nodes after relations %1")
+                             .arg (nodeSet.count()));
+  mainUi.logDisplay->append (tr("number parcels to go %1")
+                             .arg (indexList.count()));
 }
 
 void
@@ -272,17 +320,43 @@ qDebug () << " FindWays";
   bool ok = db.GetWays (parcelIndex,wayList);
   int nways = wayList.count();
 qDebug () << " waylist count " << wayList.count();
-  waySet = wayList.toSet();
+  waySet += wayList.toSet();
   mainUi.logDisplay->append (QString ("GetWay was %1").arg(ok));
   mainUi.logDisplay->append (QString ("  have %1 ways:").arg(nways));
-  for (int w=0; w<nways; w++) {
-    QString wayId = wayList.at(w);
+  QSet<QString>::iterator wit;
+  for (wit=waySet.begin(); wit!= waySet.end(); wit++) {
+    QString wayId = *wit;
     mainUi.logDisplay->append (QString ("  Way %1")
                               .arg(wayId));
     ListWayDetails (wayId);
   }
+  FindRelations ();
   ListRelations ();
   mainUi.logDisplay->append ("---------");
+}
+
+void
+NvRoute::FindRelations ()
+{
+  QSet<QString>::iterator  sit;
+  for (sit=nodeSet.begin(); sit!= nodeSet.end(); sit++) {
+    QStringList relationList;
+    db.GetRelations (*sit, "node", relationList);
+    relationSet += relationList.toSet();
+    qDebug () << QString (" node %1 in %2 relations")
+                 .arg (*sit).arg (relationList.count());
+  }
+}
+
+void
+NvRoute::FindNodes ()
+{
+  QSet<QString>::iterator sit;
+  for (sit=relationSet.begin(); sit!=relationSet.end(); sit++) {
+    QStringList nodeList;
+    db.GetRelationMembers (*sit, "node", nodeList);
+    nodeSet += nodeList.toSet();
+  }
 }
 
 void
