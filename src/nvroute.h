@@ -69,7 +69,7 @@ private slots:
   void License ();
   void Exiting ();
 
-  void FindButton ();
+  void LatLonButton ();
   void ParcelButton ();
   void FeatureButton ();
   void FindWays ();
@@ -79,6 +79,17 @@ private slots:
   void Picked (QTreeWidgetItem *item, int column);
 
 private:
+
+  enum CellType {
+       Cell_NoType = 0,
+       Cell_Node = 1,
+       Cell_Way,
+       Cell_Relation,
+       Cell_Tag,
+       Cell_LatLon,
+       Cell_Header,
+       Cell_Bad
+  };
 
 
   void Connect ();
@@ -96,12 +107,14 @@ private:
   void ListRelations ();
   void ListNodeRelations ();
   void FindParcel (quint64 parcel, int round);
-  QAction* CellMenu (const QTreeWidgetItem *item,
+  QAction* CellMenu (QTreeWidgetItem *item,
                     int column,
                     const QList <QAction*> extraActions
                           = QList <QAction*>() );
-  void CellMenuTop (const QTreeWidgetItem *item,
+  void CellMenuTop (QTreeWidgetItem *item,
                     int column);
+  void CollectRelated (QTreeWidgetItem *item);
+  QString CellTypeName (CellType type);
 
   bool             initDone;
   QApplication    *app;
@@ -122,6 +135,8 @@ private:
   quint64         parcelIndex;
   QList<quint64>  indexList;
   QTimer         *findTimer;
+
+  QMap <CellType, QString > cellTypeName;
 
 };
 

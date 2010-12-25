@@ -61,6 +61,14 @@ NvRoute::NvRoute (QWidget *parent)
   mainUi.actionRestart->setEnabled (false);
   helpView = new HelpView (this);
   findTimer = new QTimer (this);
+  cellTypeName[Cell_NoType] = "NoType";
+  cellTypeName[Cell_Node] = "Node";
+  cellTypeName[Cell_Way] = "Way";
+  cellTypeName[Cell_Relation] = "Relation";
+  cellTypeName[Cell_Tag] = "Tag";
+  cellTypeName[Cell_LatLon] = "LatLon";
+  cellTypeName[Cell_Header] = "Header";
+  cellTypeName[Cell_Bad] = "Bad";
   Connect ();
 }
 
@@ -105,18 +113,26 @@ NvRoute::Run ()
 void
 NvRoute::SetDefaults ()
 {
-  double defLat (0.0);
-  double defLon (0.0);
-  defLat = Settings().value ("defaults/lat",defLat).toDouble();
-  Settings().setValue ("defaults/lat",defLat);
-  defLon = Settings().value ("defaults/lon",defLon).toDouble();
-  Settings().setValue ("defaults/lon",defLon);
+  double south (0.0);
+  double north (0.0);
+  double east (0.0);
+  double west (0.0);
+  south = Settings().value ("defaults/south",south).toDouble();
+  Settings().setValue ("defaults/south",south);
+  north = Settings().value ("defaults/north",north).toDouble();
+  Settings().setValue ("defaults/north",north);
+  east = Settings().value ("defaults/east",east).toDouble();
+  Settings().setValue ("defaults/east",east);
+  west = Settings().value ("defaults/west",west).toDouble();
+  Settings().setValue ("defaults/west",west);
   quint64 parcel (0);
   parcel = Settings().value ("defaults/parcel",parcel).toULongLong();
   Settings().setValue ("defaults/parcel",parcel);
   Settings().sync();
-  mainUi.latValue->setValue (defLat);
-  mainUi.lonValue->setValue (defLon);
+  mainUi.southValue->setValue (south);
+  mainUi.northValue->setValue (north);
+  mainUi.westValue->setValue (west);
+  mainUi.eastValue->setValue (east);
   mainUi.parcelEdit->setText (QString::number(parcel));
 }
 
@@ -133,8 +149,8 @@ NvRoute::Connect ()
            this, SLOT (License ()));
   connect (mainUi.actionRestart, SIGNAL (triggered()),
            this, SLOT (Restart ()));
-  connect (mainUi.findButton, SIGNAL (clicked()),
-           this, SLOT (FindButton ()));
+  connect (mainUi.latlonButton, SIGNAL (clicked()),
+           this, SLOT (LatLonButton ()));
   connect (mainUi.parcelButton, SIGNAL (clicked()),
            this, SLOT (ParcelButton ()));
   connect (mainUi.featureButton, SIGNAL (clicked()),
@@ -247,40 +263,24 @@ qDebug () << "ParcelButton " << parcel;
 }
 
 void
-NvRoute::FindButton ()
+NvRoute::LatLonButton ()
 {
-  double lat = mainUi.latValue->value();
-  double lon = mainUi.lonValue->value();
-qDebug () << "FindButton " << lat << lon;
-  Settings().setValue ("defaults/lat",lat);
-  Settings().setValue ("defaults/lon",lon);
+
+  double south = mainUi.southValue->value();
+  double north = mainUi.northValue->value();
+  double west = mainUi.westValue->value();
+  double east = mainUi.eastValue->value();
+  Settings().setValue ("defaults/south",south);
+  Settings().setValue ("defaults/north",north);
+  Settings().setValue ("defaults/east",east);
+  Settings().setValue ("defaults/west",west);
   mainUi.logDisplay->append ("FindButton ++++");
-  double offset = 1.0/Parcel::Resolution();
   waySet.clear ();
-  nodeSet.clear ();
   relationSet.clear ();
-  mainUi.featureDisplay->clear();
-  wayList.clear ();
-  findTimer->start (10000);
-  int round (0);
-  int extend = mainUi.extendedSize->value();
-  for (int i= -extend; i<=extend; i++) {
-    for (int j= -extend ; j<=extend; j++) {
-      double dlat = lat + (double(i) * offset);
-      double dlon = lon + (double(j) * offset);
-      quint64 parcel = Parcel::Index (dlat,dlon);
-      QString msg = QString ("lat %1 lon %2 is parcel %3 (0x%4)\n")
-                             .arg (dlat)
-                             .arg (dlon)
-                             .arg (parcel)
-                             .arg (QString::number(parcel,16));
-      mainUi.logDisplay->append (msg);
-qDebug () << msg;
-      FindParcel (parcel, round);
-      round++;
-    }
-  }
-  QTimer::singleShot (100,this, SLOT (FindThings));
+  QStringList nodeList;
+  db.GetNodesByLatLon (nodeList, south, west, north, east);
+  nodeSet = nodeList.toSet();
+  ListNodes ();
 }
 
 void
@@ -336,12 +336,12 @@ NvRoute::FindThings ()
                              .arg (nodeSet.count()));
   FindRelations ();
   FindNodes ();
-  QTreeWidgetItem * nodeListItem = new QTreeWidgetItem;
+  QTreeWidgetItem * nodeListItem = new QTreeWidgetItem (Cell_Header);
   QList <QTreeWidgetItem*> itemList;
   QTreeWidgetItem *nodeItem;
   QSet <QString>::iterator nit;
   for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
-    nodeItem = new QTreeWidgetItem;
+    nodeItem = new QTreeWidgetItem (Cell_Node);
     QString nodeId = *nit;
     ListNodeDetails (nodeItem, nodeId);
     itemList.append (nodeItem);
@@ -420,14 +420,14 @@ NvRoute::ListWayDetails (const QString & wayId)
   db.GetWayTag (wayId, "addr:housenumber", houseNumber);
   labels << houseNumber;
   
-  QTreeWidgetItem *wayItem = new QTreeWidgetItem (tree, labels);
+  QTreeWidgetItem *wayItem = new QTreeWidgetItem (tree, labels, Cell_Way);
   QStringList wayNodes;
   bool hasNodes = db.GetWayNodes (wayId, wayNodes);
   if (hasNodes) {
     QList <QTreeWidgetItem*> itemList;
     QTreeWidgetItem *nodeItem;
     for (int n=0; n<wayNodes.count(); n++) {
-      nodeItem = new QTreeWidgetItem;
+      nodeItem = new QTreeWidgetItem (Cell_Node);
       QString nodeId = wayNodes.at (n);
       ListNodeDetails (nodeItem, nodeId);
       itemList.append (nodeItem);
@@ -442,7 +442,7 @@ NvRoute::ListWayDetails (const QString & wayId)
     QList <QTreeWidgetItem*> itemList;
     QTreeWidgetItem *nodeItem;
     for (int n=0; n<wayRelations.count(); n++) {
-      nodeItem = new QTreeWidgetItem;
+      nodeItem = new QTreeWidgetItem (Cell_Node);
       nodeItem->setText (0,QString ("relation %1").arg(wayRelations.at(n)));
       itemList.append (nodeItem);
     } 
@@ -470,12 +470,12 @@ void
 NvRoute::ListRelations ()
 {
   QSet<QString>::iterator nit;
-  QTreeWidgetItem * listItem = new QTreeWidgetItem;
+  QTreeWidgetItem * listItem = new QTreeWidgetItem (Cell_Header);
   listItem->setText (0,QString ("found %1 Relations")
                         .arg (relationSet.count()));
   QList <QTreeWidgetItem*> relList;
   for (nit=relationSet.begin(); nit!= relationSet.end(); nit++) {
-    QTreeWidgetItem *relItem = new QTreeWidgetItem;
+    QTreeWidgetItem *relItem = new QTreeWidgetItem (Cell_Relation);
     relItem->setText (0,QString("relation %1").arg(*nit));
     ListRelationDetails (relItem, *nit);
     relList.append (relItem);
@@ -488,12 +488,12 @@ void
 NvRoute::ListNodes ()
 {
   QSet<QString>::iterator nit;
-  QTreeWidgetItem * listItem = new QTreeWidgetItem;
+  QTreeWidgetItem * listItem = new QTreeWidgetItem (Cell_Header);
   listItem->setText (0,QString ("found %1 Nodes")
                         .arg (nodeSet.count()));
   QList <QTreeWidgetItem*> nodeList;
   for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
-    QTreeWidgetItem *nodeItem = new QTreeWidgetItem;
+    QTreeWidgetItem *nodeItem = new QTreeWidgetItem (Cell_Node);
     nodeItem->setText (0,QString("relation %1").arg(*nit));
     ListNodeDetails (nodeItem, *nit);
     nodeList.append (nodeItem);
@@ -506,12 +506,12 @@ void
 NvRoute::ListWays ()
 {
   QSet<QString>::iterator nit;
-  QTreeWidgetItem * listItem = new QTreeWidgetItem;
+  QTreeWidgetItem * listItem = new QTreeWidgetItem (Cell_Header);
   listItem->setText (0,QString ("found %1 Ways")
                         .arg (waySet.count()));
-  QList <QTreeWidgetItem*> wayList;
+  QList <QTreeWidgetItem*> wayList ;
   for (nit=waySet.begin(); nit!= waySet.end(); nit++) {
-    QTreeWidgetItem *wayItem = new QTreeWidgetItem;
+    QTreeWidgetItem *wayItem = new QTreeWidgetItem (Cell_Way);
     wayItem->setText (0,QString("way %1").arg(*nit));
     ListWayDetails (wayItem, *nit);
     wayList.append (wayItem);
@@ -529,7 +529,7 @@ NvRoute::ListRelationDetails (QTreeWidgetItem *relItem,
   QList <QTreeWidgetItem*> itemList;
   QList <QPair <QString, QString> >::iterator lit;
   for (lit=tagList.begin(); lit!=tagList.end(); lit++) {
-    QTreeWidgetItem * item = new QTreeWidgetItem;
+    QTreeWidgetItem * item = new QTreeWidgetItem (Cell_Tag);
     item->setText (0,lit->first);
     item->setText (1,lit->second);
     itemList.append (item);
@@ -546,7 +546,7 @@ NvRoute::ListWayDetails (QTreeWidgetItem *wayItem,
   QList <QTreeWidgetItem*> itemList;
   QList <QPair <QString, QString> >::iterator lit;
   for (lit=tagList.begin(); lit!=tagList.end(); lit++) {
-    QTreeWidgetItem * item = new QTreeWidgetItem;
+    QTreeWidgetItem * item = new QTreeWidgetItem (Cell_Tag);
     item->setText (0,lit->first);
     item->setText (1,lit->second);
     itemList.append (item);
@@ -573,7 +573,7 @@ NvRoute::ListNodeDetails (QTreeWidgetItem * nodeItem,
                              .arg (nodeId)
                              .arg (tagList.count()));
   for (lit=tagList.begin(); lit!=tagList.end(); lit++) {
-    QTreeWidgetItem * item = new QTreeWidgetItem;
+    QTreeWidgetItem * item = new QTreeWidgetItem (Cell_Tag);
     item->setText (0,lit->first);
     item->setText (1,lit->second);
     itemList.append (item);
@@ -588,7 +588,7 @@ NvRoute::Picked (QTreeWidgetItem *item, int column)
 }
 
 QAction *
-NvRoute::CellMenu (const QTreeWidgetItem *item,
+NvRoute::CellMenu (QTreeWidgetItem *item,
                    int column,
                    const QList<QAction *>  extraActions)
 {
@@ -632,7 +632,7 @@ NvRoute::CellMenu (const QTreeWidgetItem *item,
 }
 
 void
-NvRoute::CellMenuTop (const QTreeWidgetItem * item, int column)
+NvRoute::CellMenuTop (QTreeWidgetItem * item, int column)
 {
   if (item == 0) {
     return;
@@ -644,8 +644,36 @@ NvRoute::CellMenuTop (const QTreeWidgetItem * item, int column)
   list.append (collectAction);
 
   QAction * select = CellMenu (item, column, list);
-  bool    mailit (false);
   if (select == collectAction) {
+    CollectRelated (item);
+  }
+}
+
+void
+NvRoute::CollectRelated (QTreeWidgetItem *item)
+{
+  if (item->type() == Cell_Tag) {
+    item = item->parent ();
+  }
+  QMessageBox box (this);
+  QString msg;
+  if (item) {
+    msg = QString ("Collect for cell type %1")
+                .arg (CellTypeName (CellType(item->type())));
+  } else {
+    msg = "No Parent";
+  }
+  box.setText (msg);
+  box.exec ();
+}
+
+QString
+NvRoute::CellTypeName (CellType type)
+{
+  if (type < Cell_NoType || type > Cell_Bad) {
+    return QString ("Bad Type %1").arg(type);
+  } else {
+    return cellTypeName[type];
   }
 }
 

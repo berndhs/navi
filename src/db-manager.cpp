@@ -556,6 +556,31 @@ qDebug () << "GetByTag query " << ok << select.executedQuery();
 }
 
 void
+DbManager::GetNodesByLatLon (QStringList & nodeList,
+                            double south, double west,
+                            double north, double east)
+{
+  nodeList.clear ();
+  QString cmd ("select nodeid from nodes where "
+               " lat >= %1 AND lat <= %2 "
+               " AND "
+               " lon >= %3 AND lon <= %4 ");
+  QSqlQuery select (geoBase);
+  QString realCmd = cmd.arg (south) . arg (north)
+                       .arg (west) . arg (east);
+  bool ok = select.exec (realCmd);
+qDebug () << " real cmd " << realCmd;
+qDebug () << " executed " << ok << select.executedQuery();
+  if (!ok) {
+    return;
+  }
+  while (select.next ()) {
+    nodeList.append (select.value (0).toString());
+  }
+  return;
+}
+
+void
 DbManager::StartTransaction ()
 {
   geoBase.transaction ();

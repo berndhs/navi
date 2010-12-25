@@ -102,6 +102,9 @@ public:
                  const QString & tagValue,
                  const QString & type,
                  bool regularExp = false);
+  void GetNodesByLatLon (QStringList & nodeList,
+                        double south, double west,
+                        double north, double east);
 
 public slots:
 
