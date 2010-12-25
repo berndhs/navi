@@ -105,6 +105,11 @@ public:
   void GetNodesByLatLon (QStringList & nodeList,
                         double south, double west,
                         double north, double east);
+  void GetWaysByNode (QStringList & wayList,
+                      const QString & nodeId);
+  void GetRelationsByMember (QStringList & relIdList,
+                             const QString & memType,
+                             const QString & memId);
 
 public slots:
 

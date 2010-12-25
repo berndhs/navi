@@ -27,6 +27,7 @@
 #include "helpview.h"
 #include "db-manager.h"
 #include "navi-types.h"
+#include "route-cell-menus.h"
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -107,10 +108,6 @@ private:
   void ListRelations ();
   void ListNodeRelations ();
   void FindParcel (quint64 parcel, int round);
-  QAction* CellMenu (QTreeWidgetItem *item,
-                    int column,
-                    const QList <QAction*> extraActions
-                          = QList <QAction*>() );
   void CellMenuTop (QTreeWidgetItem *item,
                     int column);
   void CollectRelated (QTreeWidgetItem *item);
@@ -118,7 +115,7 @@ private:
 
   bool             initDone;
   QApplication    *app;
-  Ui_NvRouteMain    mainUi;
+  Ui_NvRouteMain   mainUi;
  
   ConfigEdit       configEdit;
   QStringList      configMessages;
@@ -135,6 +132,9 @@ private:
   quint64         parcelIndex;
   QList<quint64>  indexList;
   QTimer         *findTimer;
+
+  QAction        *collectAction;
+  RouteCellMenu  *cellMenu;
 
   QMap <CellType, QString > cellTypeName;
 

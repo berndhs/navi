@@ -55,12 +55,15 @@ NvRoute::NvRoute (QWidget *parent)
    helpView (0),
    runAgain (false),
    db (this),
-   findTimer (0)
+   findTimer (0),
+   collectAction (0),
+   cellMenu (0)
 {
   mainUi.setupUi (this);
   mainUi.actionRestart->setEnabled (false);
   helpView = new HelpView (this);
   findTimer = new QTimer (this);
+  cellMenu = new RouteCellMenu (this);
   cellTypeName[Cell_NoType] = "NoType";
   cellTypeName[Cell_Node] = "Node";
   cellTypeName[Cell_Way] = "Way";
@@ -277,10 +280,22 @@ NvRoute::LatLonButton ()
   mainUi.logDisplay->append ("FindButton ++++");
   waySet.clear ();
   relationSet.clear ();
-  QStringList nodeList;
-  db.GetNodesByLatLon (nodeList, south, west, north, east);
-  nodeSet = nodeList.toSet();
+  QStringList idList;
+  db.GetNodesByLatLon (idList, south, west, north, east);
+  nodeSet = idList.toSet();
+  idList.clear();
+  QSet<QString>::iterator sit;
+  for (sit=nodeSet.begin(); sit!= nodeSet.end(); sit++) {
+    QStringList ways;
+    db.GetWaysByNode (ways, *sit);
+    waySet.unite (ways.toSet()); 
+    QStringList relations;
+    db.GetRelationsByMember (relations, "node", *sit);
+    relationSet.unite (relations.toSet());
+  }
   ListNodes ();
+  ListWays ();
+  ListRelations ();
 }
 
 void
@@ -587,63 +602,21 @@ NvRoute::Picked (QTreeWidgetItem *item, int column)
   CellMenuTop (item, column);
 }
 
-QAction *
-NvRoute::CellMenu (QTreeWidgetItem *item,
-                   int column,
-                   const QList<QAction *>  extraActions)
-{
-  if (item == 0) {
-    return 0;
-  }
-  QMenu menu (this);
-  QIcon copyIcon (":/copy.png");
-  mainUi.parcelButton->setIcon (copyIcon);
-  QAction * copyAction = new QAction (tr("Copy Text"),this);
-  copyAction->setIcon(copyIcon);
-  QAction * mailAction = new QAction (tr("Mail Text"),this);
-  mailAction->setIcon(QIcon(":/mail.png"));
-  menu.addAction (copyAction);
-  menu.addAction (mailAction);
-  if (extraActions.size() > 0) {
-    menu.addSeparator ();
-  }
-  for (int a=0; a < extraActions.size(); a++) {
-    menu.addAction (extraActions.at (a));
-  }
-  
-  QAction * select = menu.exec (QCursor::pos());
-  if (select == copyAction) {
-    QClipboard *clip = QApplication::clipboard ();
-    if (clip) {
-      clip->setText (item->text(column));  
-    }
-    return 0;
-  } else if (select == mailAction) {
-    QStringList mailBodytotal;
-    QString mailBody = item->text(column);
-    mailBodytotal << mailBody;
-    QString urltext = tr("mailto:?subject=&body=%1")
-                      .arg (mailBodytotal.join("\r\n"));
-    QDesktopServices::openUrl (urltext);
-    return 0;
-  } else {
-    return select;
-  }
-}
-
 void
 NvRoute::CellMenuTop (QTreeWidgetItem * item, int column)
 {
   if (item == 0) {
     return;
   }
-  QAction *collectAction = new QAction (tr("Collect Related Features")
+  if (collectAction == 0) {
+    collectAction = new QAction (tr("Collect Related Features")
                                           , this);
-  collectAction->setIcon(QIcon(":/polar.png"));
+    collectAction->setIcon(QIcon(":/polar.png"));
+  }
   QList <QAction*> list;
   list.append (collectAction);
 
-  QAction * select = CellMenu (item, column, list);
+  QAction * select = cellMenu->CellMenu (item, column, list);
   if (select == collectAction) {
     CollectRelated (item);
   }

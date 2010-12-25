@@ -210,7 +210,7 @@ DbManager::WriteTag (const QString & type,
   insert.bindValue (0,QVariant(id));
   insert.bindValue (1,QVariant(key));
   insert.bindValue (2,QVariant(value));
-  bool ok = insert.exec ();
+  insert.exec ();
 }
 
 void
@@ -226,7 +226,7 @@ DbManager::WriteRelationMember (const QString & relId,
   insert.bindValue (0,QVariant (relId));
   insert.bindValue (1,QVariant (type));
   insert.bindValue (2,QVariant (ref));
-  bool ok = insert.exec ();
+  insert.exec ();
 }
 
 bool
@@ -569,8 +569,6 @@ DbManager::GetNodesByLatLon (QStringList & nodeList,
   QString realCmd = cmd.arg (south) . arg (north)
                        .arg (west) . arg (east);
   bool ok = select.exec (realCmd);
-qDebug () << " real cmd " << realCmd;
-qDebug () << " executed " << ok << select.executedQuery();
   if (!ok) {
     return;
   }
@@ -578,6 +576,40 @@ qDebug () << " executed " << ok << select.executedQuery();
     nodeList.append (select.value (0).toString());
   }
   return;
+}
+
+void
+DbManager::GetWaysByNode (QStringList & wayList,
+                          const QString & nodeId)
+{
+  wayList.clear ();
+  QString cmd ("select wayid from waynodes where nodeid=\"%1\"");
+  QSqlQuery select (geoBase);
+  bool ok = select.exec (cmd.arg(nodeId));
+  if (!ok) {
+    return;
+  }
+  while (select.next()) {
+    wayList.append (select.value(0).toString());
+  }
+}
+
+void
+DbManager::GetRelationsByMember (QStringList & relIdList,
+                                 const QString & memType,
+                                 const QString & memId)
+{
+  relIdList.clear ();
+  QString cmd ("select relationid from relationparts "
+               " where othertype=\"%1\" and otherid = \"%2\"");
+  QSqlQuery select (geoBase);
+  bool ok = select.exec (cmd.arg(memType).arg(memId));
+  if (!ok) {
+    return;
+  }
+  while (select.next()) {
+    relIdList.append (select.value(0).toString());
+  }
 }
 
 void

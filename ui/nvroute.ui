@@ -28,19 +28,25 @@
        <property name="columnCount">
         <number>3</number>
        </property>
+       <attribute name="headerDefaultSectionSize">
+        <number>150</number>
+       </attribute>
+       <attribute name="headerMinimumSectionSize">
+        <number>100</number>
+       </attribute>
        <column>
         <property name="text">
-         <string>Way</string>
+         <string/>
         </property>
        </column>
        <column>
         <property name="text">
-         <string>Node</string>
+         <string/>
         </property>
        </column>
        <column>
         <property name="text">
-         <string notr="true">3</string>
+         <string notr="true"/>
         </property>
        </column>
       </widget>

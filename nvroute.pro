@@ -76,6 +76,7 @@ HEADERS = \
           src/helpview.h \
           src/db-manager.h \
           src/navi-global.h \
+          src/route-cell-menus.h \
 
 
 SOURCES = \
@@ -89,4 +90,5 @@ SOURCES = \
           src/helpview.cpp \
           src/db-manager.cpp \
           src/navi-global.cpp \
+          src/route-cell-menus.cpp \
 
