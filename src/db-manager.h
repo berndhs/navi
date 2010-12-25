@@ -97,6 +97,11 @@ public:
   void GetRelations (const QString & otherId,
                      const QString & type,
                         QStringList & relIdList);
+  void GetByTag (QStringList & idList,
+                 const QString & tagKey,
+                 const QString & tagValue,
+                 const QString & type,
+                 bool regularExp = false);
 
 public slots:
 

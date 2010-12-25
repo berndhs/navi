@@ -36,6 +36,10 @@
 #include <QFile>
 #include <QTreeWidgetItem>
 #include <QTreeWidget>
+#include <QAction>
+#include <QMenu>
+#include <QClipboard>
+#include <QDesktopServices>
 
 
 using namespace deliberate;
@@ -64,6 +68,7 @@ void
 NvRoute::Init (QApplication &ap)
 {
   app = &ap;
+  QCoreApplication::setAttribute (Qt::AA_DontShowIconsInMenus, false);
   connect (app, SIGNAL (lastWindowClosed()), this, SLOT (Exiting()));
   Settings().sync();
   db.Start ();
@@ -132,6 +137,10 @@ NvRoute::Connect ()
            this, SLOT (FindButton ()));
   connect (mainUi.parcelButton, SIGNAL (clicked()),
            this, SLOT (ParcelButton ()));
+  connect (mainUi.featureButton, SIGNAL (clicked()),
+           this, SLOT (FeatureButton ()));
+  connect (mainUi.featureDisplay, SIGNAL (itemDoubleClicked (QTreeWidgetItem*,int)),
+           this, SLOT (Picked (QTreeWidgetItem*, int)));
 }
 
 void
@@ -220,7 +229,7 @@ qDebug () << "ParcelButton " << parcel;
   waySet.clear ();
   nodeSet.clear ();
   relationSet.clear ();
-  mainUi.wayTree->clear();
+  mainUi.featureDisplay->clear();
   wayList.clear ();
   
   findTimer->start (10000);
@@ -250,7 +259,7 @@ qDebug () << "FindButton " << lat << lon;
   waySet.clear ();
   nodeSet.clear ();
   relationSet.clear ();
-  mainUi.wayTree->clear();
+  mainUi.featureDisplay->clear();
   wayList.clear ();
   findTimer->start (10000);
   int round (0);
@@ -275,8 +284,28 @@ qDebug () << msg;
 }
 
 void
+NvRoute::FeatureButton ()
+{
+  QString name = mainUi.featureEdit->text ();
+  bool regular = mainUi.regularCheck->isChecked();
+qDebug () << "Feature Button " << name << regular;
+  QStringList idList;
+  db.GetByTag (idList, "name", name, "node", regular);
+  nodeSet = idList.toSet();
+  db.GetByTag (idList, "name", name, "way", regular);
+  waySet = idList.toSet();
+  db.GetByTag (idList, "name", name, "relation", regular);
+  relationSet = idList.toSet ();
+  mainUi.featureDisplay->clear();
+  ListNodes ();
+  ListWays ();
+  ListRelations ();
+}
+
+void
 NvRoute::FindParcel (quint64 parcel, int round)
 {
+  Q_UNUSED (round)
   mainUi.logDisplay->append (QString ("looking for parcel %1")
                                .arg (parcel));
   indexList.append ( parcel);
@@ -295,7 +324,7 @@ NvRoute::FindThings ()
     qDebug () << " stopped findTimer";
     return;
   }
-  mainUi.wayTree->clear();
+  mainUi.featureDisplay->clear();
   FindWays ();
   QStringList nodeList;
   parcelIndex = indexList.takeFirst();
@@ -319,7 +348,7 @@ NvRoute::FindThings ()
   } 
   nodeListItem->addChildren (itemList);
   nodeListItem->setText (0,tr("All Nodes"));
-  mainUi.wayTree->addTopLevelItem (nodeListItem);
+  mainUi.featureDisplay->addTopLevelItem (nodeListItem);
   mainUi.logDisplay->append (tr("Number nodes after relations %1")
                              .arg (nodeSet.count()));
   mainUi.logDisplay->append (tr("number parcels to go %1")
@@ -344,7 +373,7 @@ qDebug () << " waylist count " << wayList.count();
     ListWayDetails (wayId);
   }
   FindRelations ();
-  ListRelations ();
+  ListNodeRelations ();
   mainUi.logDisplay->append ("---------");
 }
 
@@ -380,7 +409,7 @@ NvRoute::ListWayDetails (const QString & wayId)
   if (!hasName) {
     return;
   }
-  QTreeWidget *tree = mainUi.wayTree;
+  QTreeWidget *tree = mainUi.featureDisplay;
   QStringList labels;
   labels << wayId;
   labels << name;
@@ -424,7 +453,7 @@ NvRoute::ListWayDetails (const QString & wayId)
 }
 
 void
-NvRoute::ListRelations ()
+NvRoute::ListNodeRelations ()
 {
   QSet<QString>::iterator nit;
   for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
@@ -434,11 +463,95 @@ NvRoute::ListRelations ()
     mainUi.logDisplay->append (QString("for Node %1 found %2 relations")
                                .arg (*nit).arg (nodeRelations.count()));
   }
+  ListRelations ();
+}
+
+void
+NvRoute::ListRelations ()
+{
+  QSet<QString>::iterator nit;
+  QTreeWidgetItem * listItem = new QTreeWidgetItem;
+  listItem->setText (0,QString ("found %1 Relations")
+                        .arg (relationSet.count()));
+  QList <QTreeWidgetItem*> relList;
   for (nit=relationSet.begin(); nit!= relationSet.end(); nit++) {
     QTreeWidgetItem *relItem = new QTreeWidgetItem;
     relItem->setText (0,QString("relation %1").arg(*nit));
-    mainUi.wayTree->addTopLevelItem (relItem);
+    ListRelationDetails (relItem, *nit);
+    relList.append (relItem);
   }
+  listItem->addChildren (relList);
+  mainUi.featureDisplay->addTopLevelItem (listItem);
+}
+
+void
+NvRoute::ListNodes ()
+{
+  QSet<QString>::iterator nit;
+  QTreeWidgetItem * listItem = new QTreeWidgetItem;
+  listItem->setText (0,QString ("found %1 Nodes")
+                        .arg (nodeSet.count()));
+  QList <QTreeWidgetItem*> nodeList;
+  for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
+    QTreeWidgetItem *nodeItem = new QTreeWidgetItem;
+    nodeItem->setText (0,QString("relation %1").arg(*nit));
+    ListNodeDetails (nodeItem, *nit);
+    nodeList.append (nodeItem);
+  }
+  listItem->addChildren (nodeList);
+  mainUi.featureDisplay->addTopLevelItem (listItem);
+}
+
+void
+NvRoute::ListWays ()
+{
+  QSet<QString>::iterator nit;
+  QTreeWidgetItem * listItem = new QTreeWidgetItem;
+  listItem->setText (0,QString ("found %1 Ways")
+                        .arg (waySet.count()));
+  QList <QTreeWidgetItem*> wayList;
+  for (nit=waySet.begin(); nit!= waySet.end(); nit++) {
+    QTreeWidgetItem *wayItem = new QTreeWidgetItem;
+    wayItem->setText (0,QString("way %1").arg(*nit));
+    ListWayDetails (wayItem, *nit);
+    wayList.append (wayItem);
+  }
+  listItem->addChildren (wayList);
+  mainUi.featureDisplay->addTopLevelItem (listItem);
+}
+
+void
+NvRoute::ListRelationDetails (QTreeWidgetItem *relItem,
+                              const QString & relId)
+{
+  QList <QPair <QString, QString> > tagList;
+  db.GetRelationTags (relId, tagList);
+  QList <QTreeWidgetItem*> itemList;
+  QList <QPair <QString, QString> >::iterator lit;
+  for (lit=tagList.begin(); lit!=tagList.end(); lit++) {
+    QTreeWidgetItem * item = new QTreeWidgetItem;
+    item->setText (0,lit->first);
+    item->setText (1,lit->second);
+    itemList.append (item);
+  }
+  relItem->addChildren (itemList);
+}
+
+void
+NvRoute::ListWayDetails (QTreeWidgetItem *wayItem,
+                              const QString & wayId)
+{
+  QList <QPair <QString, QString> > tagList;
+  db.GetWayTags (wayId, tagList);
+  QList <QTreeWidgetItem*> itemList;
+  QList <QPair <QString, QString> >::iterator lit;
+  for (lit=tagList.begin(); lit!=tagList.end(); lit++) {
+    QTreeWidgetItem * item = new QTreeWidgetItem;
+    item->setText (0,lit->first);
+    item->setText (1,lit->second);
+    itemList.append (item);
+  }
+  wayItem->addChildren (itemList);
 }
 
 void
@@ -468,6 +581,73 @@ NvRoute::ListNodeDetails (QTreeWidgetItem * nodeItem,
   nodeItem->addChildren (itemList);
 }
 
+void
+NvRoute::Picked (QTreeWidgetItem *item, int column)
+{
+  CellMenuTop (item, column);
+}
+
+QAction *
+NvRoute::CellMenu (const QTreeWidgetItem *item,
+                   int column,
+                   const QList<QAction *>  extraActions)
+{
+  if (item == 0) {
+    return 0;
+  }
+  QMenu menu (this);
+  QIcon copyIcon (":/copy.png");
+  mainUi.parcelButton->setIcon (copyIcon);
+  QAction * copyAction = new QAction (tr("Copy Text"),this);
+  copyAction->setIcon(copyIcon);
+  QAction * mailAction = new QAction (tr("Mail Text"),this);
+  mailAction->setIcon(QIcon(":/mail.png"));
+  menu.addAction (copyAction);
+  menu.addAction (mailAction);
+  if (extraActions.size() > 0) {
+    menu.addSeparator ();
+  }
+  for (int a=0; a < extraActions.size(); a++) {
+    menu.addAction (extraActions.at (a));
+  }
+  
+  QAction * select = menu.exec (QCursor::pos());
+  if (select == copyAction) {
+    QClipboard *clip = QApplication::clipboard ();
+    if (clip) {
+      clip->setText (item->text(column));  
+    }
+    return 0;
+  } else if (select == mailAction) {
+    QStringList mailBodytotal;
+    QString mailBody = item->text(column);
+    mailBodytotal << mailBody;
+    QString urltext = tr("mailto:?subject=&body=%1")
+                      .arg (mailBodytotal.join("\r\n"));
+    QDesktopServices::openUrl (urltext);
+    return 0;
+  } else {
+    return select;
+  }
+}
+
+void
+NvRoute::CellMenuTop (const QTreeWidgetItem * item, int column)
+{
+  if (item == 0) {
+    return;
+  }
+  QAction *collectAction = new QAction (tr("Collect Related Features")
+                                          , this);
+  collectAction->setIcon(QIcon(":/polar.png"));
+  QList <QAction*> list;
+  list.append (collectAction);
+
+  QAction * select = CellMenu (item, column, list);
+  bool    mailit (false);
+  if (select == collectAction) {
+  }
+}
 
 } // namespace
 

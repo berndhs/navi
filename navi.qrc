@@ -1,7 +1,10 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
 <qresource>
-<file alias="navi.png">images/navi.png</file>
+  <file alias="navi.png">images/navi.png</file>
+  <file alias="copy.png">images/copy.png</file>
+  <file alias="mail.png">images/mail.png</file>
+  <file alias="polar.png">images/polar.png</file>
 </qresource>
 <qresource prefix="/help">
   <file alias="LICENSE.txt">help/LICENSE.txt</file>

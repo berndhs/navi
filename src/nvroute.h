@@ -35,6 +35,7 @@
 
 class QApplication;
 class QTreeWidgetItem;
+class QAction;
 
 using namespace deliberate;
 
@@ -70,10 +71,12 @@ private slots:
 
   void FindButton ();
   void ParcelButton ();
+  void FeatureButton ();
   void FindWays ();
   void FindRelations ();
   void FindThings ();
   void FindNodes ();
+  void Picked (QTreeWidgetItem *item, int column);
 
 private:
 
@@ -82,10 +85,23 @@ private:
   void CloseCleanup ();
   void SetDefaults ();
   void ListWayDetails (const QString & wayId);
+  void ListWayDetails (QTreeWidgetItem *item,
+                       const QString & wayId);
   void ListNodeDetails (QTreeWidgetItem * item,
                         const QString & nodeId);
+  void ListRelationDetails (QTreeWidgetItem * relItem,
+                        const QString & nodeId);
+  void ListWays ();
+  void ListNodes ();
   void ListRelations ();
+  void ListNodeRelations ();
   void FindParcel (quint64 parcel, int round);
+  QAction* CellMenu (const QTreeWidgetItem *item,
+                    int column,
+                    const QList <QAction*> extraActions
+                          = QList <QAction*>() );
+  void CellMenuTop (const QTreeWidgetItem *item,
+                    int column);
 
   bool             initDone;
   QApplication    *app;

@@ -86,7 +86,7 @@ Collect::Again ()
 }
 
 bool
-Collect::Run ()
+Collect::Run (const QStringList & files)
 {
   runAgain = false;
   if (!initDone) {
@@ -100,6 +100,10 @@ Collect::Run ()
   Settings().setValue ("sizes/main",newsize);
   show ();
   SetDefaults ();
+  inputFiles = files;
+  if (inputFiles.count() > 0) {
+    QTimer::singleShot (200,this, SLOT (ReadNextXML()));
+  }
   return true;
 }
 
@@ -228,6 +232,7 @@ Collect::ReadButton ()
   useNetwork = true;
   autoGet = mainUi.autoGet->isChecked();
 qDebug () << " ReadButton autoGet " << autoGet;
+  readingXML = false;
   SendRequest (westEnd, westEnd + lonStep,
                southEnd, southEnd + latStep);
 }
@@ -248,8 +253,12 @@ qDebug () << " SendNext autoGet " << autoGet;
     SendRequest (westEnd, westEnd + lonStep,
                  southEnd, southEnd + latStep);
   } else {
-    LogStatus  (QString("ALL DONE with final request %1")
+    if (readingXML) {
+      LogStatus (QString("ALL DONE with file %1").arg(currentFile));
+    } else {
+      LogStatus  (QString("ALL DONE with final request %1")
                                        .arg(lastUrl));
+    }
     ShowProgress ();
   }
 }
@@ -306,6 +315,7 @@ void
 Collect::ProcessNodes (QDomDocument & doc)
 {
   QDomNodeList  nodes = doc.elementsByTagName ("node");
+qDebug () << " node count " << nodes.count();
   for (int i=0; i<nodes.count(); i++) {
     QDomNode node = nodes.at(i);
     if (node.isElement ()) {
@@ -340,6 +350,7 @@ void
 Collect::ProcessWays (QDomDocument & doc)
 {
   QDomNodeList  ways = doc.elementsByTagName ("way");
+qDebug () << " way count " << ways.count ();
   for (int i=0; i< ways.count(); i++) {
     ProcessWay (ways.item(i));
   }
@@ -349,6 +360,7 @@ void
 Collect::ProcessRelations (QDomDocument & doc)
 {
   QDomNodeList  relations = doc.elementsByTagName ("relation");
+qDebug () << " relations count " << relations.count ();
   for (int i=0;i<relations.count(); i++) {
     ProcessRelation (relations.at(i));
   }
@@ -446,20 +458,54 @@ void
 Collect::ReadXML ()
 {
   useNetwork = false;
+  readingXML = true;
   QString filename = QFileDialog::getOpenFileName (this, "Read XML File");
   if (filename.length() < 1) {
     return;
   }
+  currentFile = filename;
   QFile file (filename);
   bool ok = file.open (QFile::ReadOnly);
   if (!ok) {
     return;
   }
+  readingXML = true;
   responseBytes.clear ();
   responseBytes = file.readAll();
   file.close ();
   if (responseBytes.size() > 0) {
     ProcessData (responseBytes);
+  }
+}
+void
+Collect::ReadNextXML ()
+{
+  useNetwork = false;
+  readingXML = true;
+  if (inputFiles.isEmpty () ) {
+    return;
+  }
+  QString filename = inputFiles.takeFirst();
+  if (filename.length() < 1) {
+    return;
+  }
+qDebug () << " next file " << filename;
+  LogStatus (QString ("Next file \"%1\"").arg(filename));
+  currentFile = filename;
+  QFile file (filename);
+  bool ok = file.open (QFile::ReadOnly);
+  if (!ok) {
+qDebug () << " canot open " << file.fileName();
+    return;
+  }
+  readingXML = true;
+  responseBytes.clear ();
+  responseBytes = file.readAll();
+  file.close ();
+qDebug () << " file has " << responseBytes.size() << " bytes";
+  if (responseBytes.size() > 0) {
+    ProcessData (responseBytes);
+    QTimer::singleShot (100, this, SLOT (SaveSql()));
   }
 }
 
@@ -474,7 +520,9 @@ void
 Collect::ContinueSequence ()
 {
   saveStage = Save_Stage (((int) saveStage) + 1);
-  if (saveStage <= Stage_None || saveStage >= Stage_Done) {
+  if (saveStage <= Stage_None) {
+    saveStage = Stage_None;
+  } else if (saveStage >= Stage_Done) {
     saveStage = Stage_None;
   } else {
     QTimer::singleShot (100, this, SLOT (SaveSequence()));
@@ -509,9 +557,10 @@ Collect::SaveSequence()
   case Stage_Final:
     LogStatus (QString ("done with %1").arg(lastUrl));
     ShowProgress ();
-    saveStage = Stage_Done;
     if (autoGet && useNetwork) {
       QTimer::singleShot (100, this, SLOT (SendNext()));
+    } else if (inputFiles.count() > 0) {
+      QTimer::singleShot (100, this, SLOT (ReadNextXML()));
     }
   default:
     break;

@@ -50,7 +50,7 @@ public:
   Collect (QWidget *parent=0);
 
   void  Init (QApplication &ap);
-  bool  Run ();
+  bool  Run (const QStringList & files);
   bool  Again ();
 
   void  AddConfigMessages (const QStringList & cm) 
@@ -72,6 +72,7 @@ private slots:
   void HandleReply (QNetworkReply *reply);
   void SaveResponse ();
   void ReadXML ();
+  void ReadNextXML ();
   void SaveSql ();
   void SendNext ();
   
@@ -156,6 +157,10 @@ private:
   QMap <QString, AttrList>     relationAttrMap;
   QMap <QString, AttrList>     relationMembers;
   QMap <QString, QStringList>  wayNodes;
+
+  QStringList                  inputFiles;
+  QString                      currentFile;
+  bool                         readingXML;
 };
 
 } // namespace

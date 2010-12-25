@@ -211,7 +211,6 @@ DbManager::WriteTag (const QString & type,
   insert.bindValue (1,QVariant(key));
   insert.bindValue (2,QVariant(value));
   bool ok = insert.exec ();
-  qDebug () << " query " << ok << insert.executedQuery ();
 }
 
 void
@@ -228,7 +227,6 @@ DbManager::WriteRelationMember (const QString & relId,
   insert.bindValue (1,QVariant (type));
   insert.bindValue (2,QVariant (ref));
   bool ok = insert.exec ();
-  qDebug () << " RelMember insert " << ok << insert.executedQuery ();
 }
 
 bool
@@ -318,9 +316,6 @@ DbManager::GetRelationMembers (const QString & relId,
   QSqlQuery select (geoBase);
   QString realCmd = cmd.arg(relId).arg(type);
   bool ok = select.exec (realCmd);
-  qDebug () << " query cmd was " << realCmd;
-  qDebug () << " query " << ok << select.executedQuery ();
-  qDebug () << "      last error " << select.lastError().text();
   if (!ok) {
     return false;
   }
@@ -531,6 +526,33 @@ DbManager::GetItems (quint64 parcelIndex,
     idList.append (select.value(0).toString());
   }
   return true;
+}
+
+void
+DbManager::GetByTag (QStringList & idList,
+                     const QString & tagKey,
+                     const QString & tagValue,
+                     const QString & type,
+                           bool regularExp)
+{
+  idList.clear();
+  QString cmd ("select %1id from %1tags where key=\"%2\" "
+                  "and value %3 \"%4\"");
+  QSqlQuery select (geoBase);
+  QString compareOp (regularExp ? " GLOB " : "=");
+  QString realCmd  = cmd .arg (type)
+                             .arg (tagKey)
+                             .arg (compareOp)
+                             .arg (tagValue) ;
+  bool ok = select.exec (realCmd);
+qDebug () << "GetByTag query " << ok << select.executedQuery();
+  qDebug () << " query cmd was " << realCmd;
+  qDebug () << "      last error " << select.lastError().text();
+  if (ok) {
+    while (select.next()) {
+      idList.append (select.value(0).toString());
+    } 
+  }
 }
 
 void

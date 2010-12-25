@@ -89,7 +89,7 @@ main (int argc, char *argv[])
   collect.Init (app);
   collect.AddConfigMessages (configMessages);
 
-  collect.Run ();
+  collect.Run (opts.Arguments());
   result = app.exec ();
   qDebug () << " QApplication exec finished " << result;
   return result;
