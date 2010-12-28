@@ -72,6 +72,8 @@ DbManager::Start ()
 
   QStringList  eventElements;
   eventElements << "nodes"
+                << "nodelatindex"
+                << "nodelonindex"
                 << "ways"
                 << "nodetags"
                 << "waytags"
@@ -85,6 +87,8 @@ DbManager::Start ()
   CheckDBComplete (geoBase, eventElements);
 
   dbRunning = true;
+  qDebug () << " available drivers: " 
+           << QSqlDatabase::drivers ();
 }
 
 void
@@ -324,28 +328,6 @@ DbManager::GetRelationMembers (const QString & relId,
     refList.append (select.value(0).toString());
   }
   return true;
-}
-
-void
-DbManager::GetRelations (const QString & otherId, 
-                            const QString & type,
-                            QStringList & relIdList)
-{
-  QString cmd ("select relationid from relationparts "
-               " where othertype=\"%1\" and otherid = \"%2\"");
-  QSqlQuery select (geoBase);
-  QString realCmd = cmd.arg(type).arg(otherId);
-  bool ok = select.exec (realCmd);
-  qDebug () << " query cmd was " << realCmd;
-  qDebug () << " query " << ok << select.executedQuery ();
-  qDebug () << "      last error " << select.lastError().text();
-  relIdList.clear ();
-  if (!ok) {
-    return;
-  }
-  while (select.next ()) {
-    relIdList.append (select.value(0).toString());
-  }
 }
 
 void

@@ -94,9 +94,6 @@ public:
   bool GetRelationMembers (const QString & relId,
                            const QString & type,
                            QStringList & refList);
-  void GetRelations (const QString & otherId,
-                     const QString & type,
-                        QStringList & relIdList);
   void GetByTag (QStringList & idList,
                  const QString & tagKey,
                  const QString & tagValue,
@@ -111,6 +108,9 @@ public:
                              const QString & memType,
                              const QString & memId);
 
+  void FindRelationsByMember (const QString & memType,
+                              const QString & memId);
+
 public slots:
 
 
@@ -118,7 +118,6 @@ private slots:
 
 
 private:
-
 
   void StartDB (QSqlDatabase & db,
                     const QString & conName, 
@@ -149,6 +148,7 @@ private:
                       QList<QPair <QString, QString> >  & list);
 
   QSqlDatabase  geoBase;
+  int           geoBaseHandle;
   bool          dbRunning;
 
 };

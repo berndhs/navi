@@ -77,6 +77,7 @@ HEADERS = \
           src/db-manager.h \
           src/navi-global.h \
           src/route-cell-menus.h \
+          src/sqlite-runner.h \
 
 
 SOURCES = \
@@ -91,4 +92,5 @@ SOURCES = \
           src/db-manager.cpp \
           src/navi-global.cpp \
           src/route-cell-menus.cpp \
+          src/sqlite-runner.h \
 

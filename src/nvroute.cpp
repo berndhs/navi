@@ -72,6 +72,7 @@ NvRoute::NvRoute (QWidget *parent)
   cellTypeName[Cell_LatLon] = "LatLon";
   cellTypeName[Cell_Header] = "Header";
   cellTypeName[Cell_Bad] = "Bad";
+  asynchDB = new SqliteRunner;
   Connect ();
 }
 
@@ -83,6 +84,8 @@ NvRoute::Init (QApplication &ap)
   connect (app, SIGNAL (lastWindowClosed()), this, SLOT (Exiting()));
   Settings().sync();
   db.Start ();
+  asynchDB->Start ();
+  asynchDB->RequestOpen (Settings().simpleValue ("database/geobase").toString());
   initDone = true;
 }
 
@@ -160,6 +163,12 @@ NvRoute::Connect ()
            this, SLOT (FeatureButton ()));
   connect (mainUi.featureDisplay, SIGNAL (itemDoubleClicked (QTreeWidgetItem*,int)),
            this, SLOT (Picked (QTreeWidgetItem*, int)));
+  connect (mainUi.asynchButton, SIGNAL (clicked()),
+           this, SLOT (ReadAsynch ()));
+  connect (asynchDB, SIGNAL (DoneOpen (int, bool)),
+           this, SLOT (CatchOpen (int, bool)));
+  connect (asynchDB, SIGNAL (ResultsReady (int, bool, const QVariant&)),
+           this, SLOT (CatchResults (int, bool, const QVariant&)));
 }
 
 void
@@ -175,6 +184,7 @@ void
 NvRoute::Quit ()
 {
   CloseCleanup ();
+  asynchDB->Stop ();
   if (app) {
     app->quit();
   }
@@ -268,7 +278,7 @@ qDebug () << "ParcelButton " << parcel;
 void
 NvRoute::LatLonButton ()
 {
-
+  mainUi.featureDisplay->clear ();
   double south = mainUi.southValue->value();
   double north = mainUi.northValue->value();
   double west = mainUi.westValue->value();
@@ -292,6 +302,10 @@ NvRoute::LatLonButton ()
     QStringList relations;
     db.GetRelationsByMember (relations, "node", *sit);
     relationSet.unite (relations.toSet());
+  }
+  for (sit=waySet.begin(); sit!= waySet.end(); sit++) {
+    QStringList relations;
+    db.GetRelationsByMember (relations, "way", *sit);
   }
   ListNodes ();
   ListWays ();
@@ -398,7 +412,7 @@ NvRoute::FindRelations ()
   QSet<QString>::iterator  sit;
   for (sit=nodeSet.begin(); sit!= nodeSet.end(); sit++) {
     QStringList relationList;
-    db.GetRelations (*sit, "node", relationList);
+    db.GetRelationsByMember (relationList, "node", *sit);
     relationSet += relationList.toSet();
     qDebug () << QString (" node %1 in %2 relations")
                  .arg (*sit).arg (relationList.count());
@@ -450,7 +464,7 @@ NvRoute::ListWayDetails (const QString & wayId)
     wayItem->addChildren (itemList);
   }
   QStringList wayRelations;
-  db.GetRelations (wayId, "way", wayRelations);
+  db.GetRelationsByMember (wayRelations, "way", wayId);
   mainUi.logDisplay->append (QString("found %1 way relations")
                              .arg (wayRelations.count()));
   if (wayRelations.count() > 0) {
@@ -473,7 +487,7 @@ NvRoute::ListNodeRelations ()
   QSet<QString>::iterator nit;
   for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
     QStringList nodeRelations;
-    db.GetRelations (*nit, "node", nodeRelations);
+    db.GetRelationsByMember (nodeRelations, "node", *nit);
     nodeSet += nodeRelations.toSet();
     mainUi.logDisplay->append (QString("for Node %1 found %2 relations")
                                .arg (*nit).arg (nodeRelations.count()));
@@ -648,6 +662,32 @@ NvRoute::CellTypeName (CellType type)
   } else {
     return cellTypeName[type];
   }
+}
+
+void
+NvRoute::ReadAsynch ()
+{
+  qDebug () << " ReadAsynch";
+  QString feat = mainUi.featureEdit->text();
+  QString cmd = QString ("select wayid from waytags where key=\"name\" "
+                 "AND value GLOB \"%1\"").arg(feat);
+  asynchDB->RequestSelectExec (asynchHandle, 1, cmd);
+}
+
+void
+NvRoute::CatchOpen (int openId, bool ok)
+{
+  qDebug () << " CatchOpen " << openId << ok;
+  if (ok) {
+    asynchHandle = openId;
+  }
+}
+
+void
+NvRoute::CatchResults (int selid, bool ok, const QVariant & results)
+{
+  qDebug () << "Catch Results " << selid << ok;
+  qDebug () << results;
 }
 
 } // namespace
