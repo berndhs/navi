@@ -28,7 +28,6 @@
 #include "db-manager.h"
 #include "navi-types.h"
 #include "route-cell-menus.h"
-#include "sqlite-runner.h"
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -79,9 +78,6 @@ private slots:
   void FindThings ();
   void FindNodes ();
   void Picked (QTreeWidgetItem *item, int column);
-  void ReadAsynch ();
-  void CatchOpen (int openId, bool good);
-  void CatchResults (int selid, bool good, const QVariant & results);
 
 private:
 
@@ -141,9 +137,6 @@ private:
   RouteCellMenu  *cellMenu;
 
   QMap <CellType, QString > cellTypeName;
-
-  SqliteRunner    *asynchDB;
-  int             asynchHandle;
 
 };
 

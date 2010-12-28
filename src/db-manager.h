@@ -108,9 +108,6 @@ public:
                              const QString & memType,
                              const QString & memId);
 
-  void FindRelationsByMember (const QString & memType,
-                              const QString & memId);
-
 public slots:
 
 

@@ -25,4 +25,4 @@
 
 TEMPLATE = subdirs
 
-SUBDIRS = collect.pro nvroute.pro
+SUBDIRS = collect.pro nvroute.pro asroute.pro
