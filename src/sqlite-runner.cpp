@@ -330,6 +330,7 @@ SqliteRunner::DoClose (RequestStruct &req)
 void
 SqliteRunner::DoQuery (RequestStruct & req)
 {
+qDebug () << " DoQuery";
   SignalStruct sig (Sig_Op);
   sig.value0 = req.queryId;
   if (queryMap.contains (req.queryId)) {
@@ -337,6 +338,7 @@ SqliteRunner::DoQuery (RequestStruct & req)
     if (!qry) {
       return;     // corrupted map
     }
+qDebug () << " Do QUery " << req.data;
     bool ok = qry->exec (req.data);
     sig.okFlag = ok;
     sig.value1 = qry->numRowsAffected ();

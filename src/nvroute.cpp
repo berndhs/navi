@@ -102,7 +102,7 @@ NvRoute::Run ()
     Quit ();
     return false;
   }
-  qDebug () << " Start Collect";
+  qDebug () << " Start NvRoute";
   QSize defaultSize = size();
   QSize newsize = Settings().value ("sizes/main", defaultSize).toSize();
   resize (newsize);

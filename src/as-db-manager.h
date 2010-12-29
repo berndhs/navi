@@ -64,9 +64,59 @@ Q_OBJECT
   void WriteWayParcel (const QString & wayId,
                   quint64 parcelIndex); 
 
+private slots:
+
+  void CatchOpen (int dbHandle, bool ok);
+  void CatchClose (int dbHandle);
+  void CatchOp (int queryHandle, bool ok, int numRowsAffected);
+  void CatchResults (int queryHandle, bool ok, const QVariant & results);
+
+signals:
+
+  void DoneStartDB (int handle, const QString & name);
+  void DoneCheckComplete (int handle);
+
 private:
 
-  SqliteRunner  runner;
+  void Connect ();
+  void StartDB (int & handle, const QString & dbname);
+  void CheckFileExists (const QString & filename);
+  void CheckDBComplete (int dbHandle, const QStringList & elements);
+  void ContinueCheck (int dbHandle);
+  void AskElementType (int dbHandle, const QString & eltName);
+  void CheckElementType (int queryHandle, bool ok,
+                         const QVariant & results);
+  void MakeElement (int dbHandle, const QString & elementName);
+
+  struct DbState {
+    bool    open;
+    bool    checkInProgress;
+    QString name;
+  };
+
+  enum QueryType {
+    Query_None = 0,
+    Query_IgnoreResult = 1,
+    Query_AskElement
+  };
+
+  struct QueryState {
+    bool       finished;
+    QueryType  type;
+    int        dbHandle;
+    QVariant   data;
+  };
+
+  typedef QMap <int, DbState>      DbMapType;
+  typedef QMap <int, QueryState>   QueryMapType;
+
+  DbMapType       dbMap;
+  QueryMapType    queryMap;
+
+  QMap <int, QStringList>  dbCheckList;
+
+  SqliteRunner   *runner;
+  int             geoBaseHandle;
 };
 
 } // namespace
