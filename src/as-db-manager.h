@@ -32,6 +32,7 @@ namespace navi
 class AsDbManager : public QObject 
 {
 Q_OBJECT
+public:
 
   AsDbManager (QObject *parent=0);
   ~AsDbManager ();
