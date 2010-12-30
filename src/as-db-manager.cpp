@@ -28,6 +28,8 @@
 #include <QTimer>
 #include <QByteArray>
 #include "deliberate.h"
+#include "sql-run-database.h"
+#include "sql-run-query.h"
 
 #include <QDebug>
 
@@ -38,9 +40,9 @@ namespace navi
 
 AsDbManager::AsDbManager (QObject *parent)
   :QObject (parent),
-   geoBaseHandle (-1)
+   geoBase (0)
 {
-  runner = new SqliteRunner;
+  runner = new SqlRunner;
   Connect ();
 }
 
@@ -77,21 +79,20 @@ AsDbManager::Start ()
                 << "relationtags";
 
   runner->Start ();
-  StartDB (geoBaseHandle, geoBaseName);
-  CheckDBComplete (geoBaseHandle, geoElements);
+  geoBase = StartDB (geoBaseName);
+qDebug () << " stated DB " << geoBase;
+  CheckDBComplete (geoBase, geoElements);
 }
 
 void
 AsDbManager::Connect ()
 {
-  connect (runner, SIGNAL (DoneOpen (int , bool)),
-           this, SLOT (CatchOpen (int, bool)));
-  connect (runner, SIGNAL (DoneClose (int)),
-           this, SLOT (CatchClose (int)));
-  connect (runner, SIGNAL (DoneOp (int, bool, int)),
-           this, SLOT (CatchOp (int, bool, int)));
-  connect (runner, SIGNAL (ResultsReady (int, bool, const QVariant&)),
-           this, SLOT (CatchResults (int, bool, const QVariant&)));
+  connect (runner, SIGNAL (Opened (SqlRunDatabase* , bool)),
+           this, SLOT (CatchOpen (SqlRunDatabase* , bool)));
+  connect (runner, SIGNAL (Closed (SqlRunDatabase* )),
+           this, SLOT (CatchClose (SqlRunDatabase* )));
+  connect (runner, SIGNAL (Finished  (SqlRunQuery*, bool)),
+           this, SLOT (CatchFinished (SqlRunQuery*, bool)));
 }
 
 void
@@ -101,16 +102,17 @@ AsDbManager::Stop ()
   runner->Stop ();
 }
 
-void
-AsDbManager::StartDB (int & handle, const QString & dbname)
+SqlRunDatabase*
+AsDbManager::StartDB (const QString & dbname)
 {
   CheckFileExists (dbname);
-  handle = runner->RequestOpen (dbname);
+  SqlRunDatabase *db = runner->openDatabase (dbname);
   DbState state;
   state.open = false;
   state.name = dbname;
   state.checkInProgress = false;
-  dbMap[handle] = state;
+  dbMap[db] = state;
+  return db;
 }
 
 void
@@ -128,114 +130,100 @@ AsDbManager::CheckFileExists (const QString & filename)
 }
 
 void
-AsDbManager::CheckDBComplete (int dbHandle, const QStringList & elements)
+AsDbManager::CheckDBComplete (SqlRunDatabase *db, 
+                           const QStringList & elements)
 {
-  dbCheckList[dbHandle] = elements;
-  dbMap[dbHandle].checkInProgress = true;
+  dbCheckList[db] = elements;
+  dbMap[db].checkInProgress = true;
 }
 
 void
-AsDbManager::CatchOpen (int dbHandle, bool ok)
+AsDbManager::CatchOpen (SqlRunDatabase *db, bool ok)
 {
-  if (dbMap.contains (dbHandle)) {
-    dbMap[dbHandle].open = ok;
-    if (dbMap[dbHandle].checkInProgress) {
-      ContinueCheck (dbHandle);
+  if (dbMap.contains (db)) {
+    dbMap[db].open = ok;
+    if (dbMap[db].checkInProgress) {
+      ContinueCheck (db);
     }
   }
 }
 
 void
-AsDbManager::CatchClose (int dbHandle)
+AsDbManager::CatchClose (SqlRunDatabase *db)
 {
   QMessageBox box;
-  box.setText (QString("Ignore Close db handle %1").arg(dbHandle));
+  box.setText (QString("Ignore Close"));
   QTimer::singleShot (10000, &box, SLOT (accept()));
   box.exec ();
 }
 
 void
-AsDbManager::CatchOp (int queryHandle, bool ok, int numRowsAffected)
+AsDbManager::CatchFinished (SqlRunQuery *query, bool ok)
 {
   QMessageBox box;
-  box.setText (QString("Ignore Op Complete query %1 ok %2")
-                      .arg(queryHandle)
-                      .arg (ok));
-  QTimer::singleShot (10000, &box, SLOT (accept()));
-  box.exec ();
-}
-
-void
-AsDbManager::CatchResults (int queryHandle, bool ok, 
-                          const QVariant & results)
-{
-  QMessageBox box;
-  box.setText (QString("Ignore Results for query %1 ok %2")
-                      .arg(queryHandle)
-                      .arg (ok));
-  QTimer::singleShot (10000, &box, SLOT (accept()));
-  box.exec ();
-  if (!queryMap.contains(queryHandle)) {
+  if (!queryMap.contains(query)) {
     return;  // ignore bad results
   }
-  QueryType type = queryMap[queryHandle].type;
+  QueryType type = queryMap[query].type;
   switch (type) {
   case Query_IgnoreResult:
+     query->deleteLater();
      break;
   case Query_AskElement:
-     CheckElementType (queryHandle, ok, results);
+     CheckElementType (query,ok);
+     query->deleteLater();
      break;
   default:
      qDebug () << " Not Handling Query " << type;
+     query->deleteLater();
      break;
   }
-  queryMap.remove (queryHandle);
+  queryMap.remove (query);
 }
 
 void
-AsDbManager::ContinueCheck (int dbHandle)
+AsDbManager::ContinueCheck (SqlRunDatabase * db)
 {
-  if (!dbCheckList[dbHandle].isEmpty()) {
-    QString element = dbCheckList[dbHandle].takeFirst();
-    AskElementType (dbHandle, element);
+  if (!dbCheckList[db].isEmpty()) {
+    QString element = dbCheckList[db].takeFirst();
+    AskElementType (db, element);
   }
 }
 
 void
-AsDbManager::AskElementType (int dbHandle, const QString & eltName)
+AsDbManager::AskElementType (SqlRunDatabase * db, const QString & eltName)
 {
   QString pat ("select * from main.sqlite_master where name =\"%1\"");
-  QueryState query;
-  query.finished = false;
-  query.type = Query_AskElement;
-  query.dbHandle = dbHandle;
-  query.data = QVariant (eltName);
-  int queryHandle = runner->RequestSelectExec (dbHandle, 
-                       1, pat.arg(eltName));
-  queryMap[queryHandle] = query;
+  QueryState qstate;
+  qstate.finished = false;
+  qstate.type = Query_AskElement;
+  qstate.db = db;
+  qstate.data = QVariant (eltName);
+  SqlRunQuery * query = runner->newQuery (db);
+  queryMap[query] = qstate;
+  query->exec (pat.arg(eltName));
 }
 
 void
-AsDbManager::CheckElementType (int queryHandle, bool ok, 
-                              const QVariant & results)
+AsDbManager::CheckElementType (SqlRunQuery *query, bool ok)
 {
   bool typeGood (ok);
-qDebug () << " Element Type result " << results;
   if (typeGood) {
-    QString eltType = results.toMap()["0"].toMap()["0"].toString();
+    query->first();
+    QString eltType = query->value(0).toString();
     typeGood = (eltType == "TABLE" || eltType == "INDEX");
   }
-  QString eltName = queryMap[queryHandle].data.toString();
-  int dbHandle = queryMap[queryHandle].dbHandle;
-  dbCheckList[dbHandle].removeAll (eltName);
+  QString eltName = queryMap[query].data.toString();
+  SqlRunDatabase * db = queryMap[query].db;
+  dbCheckList[db].removeAll (eltName);
   if (!typeGood) {
-    MakeElement (dbHandle, eltName);
+    MakeElement (db, eltName);
   }
-  ContinueCheck (dbHandle);
+  ContinueCheck (db);
 }
 
 void
-AsDbManager::MakeElement (int dbHandle, const QString & elementName)
+AsDbManager::MakeElement (SqlRunDatabase * db, const QString & elementName)
 {
   QString filename (QString (":/schemas/%1.sql").arg (elementName));
   QFile  schemafile (filename);
@@ -243,11 +231,12 @@ AsDbManager::MakeElement (int dbHandle, const QString & elementName)
   QByteArray  createcommands = schemafile.readAll ();
   schemafile.close ();
   QString cmd (createcommands);
-  QueryState query;
-  query.finished = false;
-  query.type = Query_IgnoreResult;
-  int handle = runner->RequestQuery (dbHandle, cmd);
-  queryMap[handle] = query;
+  QueryState qstate;
+  qstate.finished = false;
+  qstate.type = Query_IgnoreResult;
+  SqlRunQuery * query = runner->newQuery (db);
+  queryMap[query] = qstate;
+  query->exec (cmd);
 }
 
 } // namespace

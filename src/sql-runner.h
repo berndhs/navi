@@ -1,5 +1,5 @@
-#ifndef SQLITE_RUNNER_H
-#define SQLITE_RUNNER_H
+#ifndef DELIBERATE_SQLITE_RUNNER_H
+#define DELIBERATE_SQLITE_RUNNER_H
 
 
 /****************************************************************
@@ -42,69 +42,30 @@ class QTimer;
 namespace deliberate
 {
 
-class SqliteRunner : public QObject, public QRunnable
+class SqlRunQuery;
+class SqlRunDatabase;
+
+class SqlRunner : public QObject, public QRunnable
 {
 Q_OBJECT
 public:
 
-  SqliteRunner ();
-  ~SqliteRunner ();
+
+  SqlRunner ();
+  ~SqlRunner ();
 
   void Start (int priority=0);
   void Stop ();
   void run ();
 
-  /** \brief RequestOpen 
-    * @return  handle (openId) for the connection, or -1 on failure
-    */
-  int RequestOpen (const QString & db);
-
-  /** \brief RequestClose
-    * @return  same as openId
-    */
-  int RequestClose (int openId);
-
-  /** \brief RequestQuery
-    * @return handle for the return signal DoneOp
-    */
-  int RequestQuery (int openId, const QString & cmd);
-
-  /** \brief RequestSelectExec
-    * @return handle for the return signal ResultsReady
-    */
-  int RequestSelectExec (int openId, 
-                         int numResults,
-                     const QString & cmd);
-
-  /** \brief RequestSelectExec
-    * @return handle for the return signal ResultsReady
-    */
-  int RequestSelectExec (int prepareId);
-
-  /** \brief RequestSelectPrepare
-    * @return handle to be used in RequestBind
-    */
-  int RequestSelectPrepare (int openId, 
-                         int numResults,
-                      const QString & cmd);
-
-  /** \brief RequestBind
-    * @param prepareId the handle for the select from RequestSelectPrepare
-    * @return bind request id
-    */
-  int RequestBind (int prepareId, 
-                         int index,
-                      const QVariant & value,  
-                      QSql::ParamType paramType = QSql::In);
+  SqlRunDatabase  *openDatabase (const QString & filename);
+  SqlRunQuery     *newQuery (SqlRunDatabase * db);
 
 signals:
 
-  void ResultsReady (int selectId, 
-                     bool ok, 
-                     const QVariant & resultRows);
-  void DoneOp (int opId, bool ok, int rowsAffected);
-  void DoneClose (int openId);
-  void DoneOpen (int openId, bool ok);
+  void Finished (SqlRunQuery * query, bool ok);
+  void Opened (SqlRunDatabase * db, bool ok);
+  void Closed (SqlRunDatabase * db);
 
 private slots:
 
@@ -114,13 +75,13 @@ private:
 
   enum RequestType {
        Req_None = 0,
-       Req_Open = 10,
-       Req_Close = 20,
-       Req_Query = 30,
-       Req_SelectExecString = 40,
-       Req_SelectExec = 41,
-       Req_SelectPrepare = 50,
-       Req_Bind = 60,
+       Req_Open = 1,
+       Req_Close = 2,
+       Req_ExecString = 3,
+       Req_Exec = 4,
+       Req_Prepare = 5,
+       Req_Bind = 6,
+       Req_DeallocQuery = 7,
        Req_Bad
   };
 
@@ -133,36 +94,51 @@ private:
        Sig_Bad
   };
 
-  class RequestStruct {
-    public:
+  struct RequestStruct {
       RequestStruct (RequestType t=Req_None) : type(t){}
       RequestType      type;
       int              requestId;
       int              openId;
       int              queryId;
-      int              numValues;
       int              bindIndex;
       QSql::ParamType  bindType;
       QString          data;
       QVariant         bindValue;
   };
 
-  class SignalStruct {
-    public:
+  struct SignalStruct {
       SignalStruct (SignalType t=Sig_None) : type(t){}
       SignalType  type;
       bool        okFlag;
       int         value0;
       int         value1;
-      QVariant    results;
   };
 
-  typedef QMap<int, QSqlDatabase*> DBaseMapType;
-  typedef QMap<int, QSqlQuery*>    QueryMapType;
+  typedef QMap<int, SqlRunDatabase*>    DBaseMapType;
+  typedef QMap<SqlRunDatabase*, int>    RevDBaseMapType;
+  typedef QMap<int, SqlRunQuery*>       QueryMapType;
 
-  int QueueQuery (int openId,
+  void RequestOpen (int dbid);
+
+  void RequestClose (int openId);
+
+  void RequestExec (int queryHandle, 
+                  const QString & cmd);
+
+  void RequestExec (int queryHandle);
+
+  void RequestPrepare (int queryHandle, 
+                      const QString & cmd);
+
+  void RequestBind (int queryHandle, 
+                         int index,
+                      const QVariant & value,  
+                      QSql::ParamType paramType = QSql::In);
+
+  void RequestDelete (int queryHandle);
+
+  void QueueQuery (int openId,
                   RequestType type,
-                  int  numValues,
                   const QString & cmd);
 
   bool CloseDB (int openId);
@@ -173,14 +149,14 @@ private:
  
   void DoOpen (RequestStruct & req);
   void DoClose (RequestStruct & req);
-  void DoQuery (RequestStruct & req);
-  void DoSelectExec  (RequestStruct & req, bool useString);
-  void DoSelectPrepare (RequestStruct & req);
+  void DoExec  (RequestStruct & req, bool useString);
+  void DoPrepare (RequestStruct & req);
   void DoBind (RequestStruct & req);
+  void DoDealloc (RequestStruct & req);
 
-  void BuildResults (QVariant & results,
-                     int  numColumns,
-                     QSqlQuery & query);
+  void BuildResults (SqlRunQuery * query);
+
+  SqlRunDatabase * database (int dbHandle);
 
   QMutex          requestLock;
   QMutex          doLock;
@@ -191,12 +167,17 @@ private:
   QList <RequestStruct>  requestList;
   QList <SignalStruct>   signalList;
 
-  DBaseMapType    dbaseMap;
-  QueryMapType    queryMap;
+  DBaseMapType     dbaseMap;
+  RevDBaseMapType  revDbaseMap;
+  
+  QueryMapType     queryMap;
 
   int             nextRequest;
 
   QTimer         *wakeTimer;
+
+  friend class SqlRunDatabase;
+  friend class SqlRunQuery;
 
 };
 

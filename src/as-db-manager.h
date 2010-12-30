@@ -23,7 +23,7 @@
  *  Boston, MA  02110-1301, USA.
  ****************************************************************/
 
-#include "sqlite-runner.h"
+#include "sql-runner.h"
 
 using namespace deliberate;
 
@@ -67,27 +67,21 @@ public:
 
 private slots:
 
-  void CatchOpen (int dbHandle, bool ok);
-  void CatchClose (int dbHandle);
-  void CatchOp (int queryHandle, bool ok, int numRowsAffected);
-  void CatchResults (int queryHandle, bool ok, const QVariant & results);
-
-signals:
-
-  void DoneStartDB (int handle, const QString & name);
-  void DoneCheckComplete (int handle);
+  void CatchOpen (SqlRunDatabase* db, bool ok);
+  void CatchClose (SqlRunDatabase *db);
+  void CatchFinished (SqlRunQuery *query, bool ok);
 
 private:
 
   void Connect ();
-  void StartDB (int & handle, const QString & dbname);
+  SqlRunDatabase * StartDB (const QString & dbname);
   void CheckFileExists (const QString & filename);
-  void CheckDBComplete (int dbHandle, const QStringList & elements);
-  void ContinueCheck (int dbHandle);
-  void AskElementType (int dbHandle, const QString & eltName);
-  void CheckElementType (int queryHandle, bool ok,
-                         const QVariant & results);
-  void MakeElement (int dbHandle, const QString & elementName);
+  void CheckDBComplete (SqlRunDatabase * db, 
+                        const QStringList & elements);
+  void ContinueCheck (SqlRunDatabase * db);
+  void AskElementType (SqlRunDatabase * db, const QString & eltName);
+  void CheckElementType (SqlRunQuery *query, bool ok);
+  void MakeElement (SqlRunDatabase * db, const QString & elementName);
 
   struct DbState {
     bool    open;
@@ -102,22 +96,22 @@ private:
   };
 
   struct QueryState {
-    bool       finished;
-    QueryType  type;
-    int        dbHandle;
-    QVariant   data;
+    bool            finished;
+    QueryType       type;
+    SqlRunDatabase *db;
+    QVariant        data;
   };
 
-  typedef QMap <int, DbState>      DbMapType;
-  typedef QMap <int, QueryState>   QueryMapType;
+  typedef QMap <SqlRunDatabase*, DbState>      DbMapType;
+  typedef QMap <SqlRunQuery*, QueryState>   QueryMapType;
 
   DbMapType       dbMap;
   QueryMapType    queryMap;
 
-  QMap <int, QStringList>  dbCheckList;
+  QMap <SqlRunDatabase*, QStringList>  dbCheckList;
 
-  SqliteRunner   *runner;
-  int             geoBaseHandle;
+  SqlRunner       *runner;
+  SqlRunDatabase  *geoBase;
 };
 
 } // namespace
