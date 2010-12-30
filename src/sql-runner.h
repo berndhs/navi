@@ -156,7 +156,7 @@ private:
 
   void BuildResults (SqlRunQuery * query);
 
-  void WakeAll ();
+  void WakeAll (bool yield=false);
 
   SqlRunDatabase * database (int dbHandle);
 

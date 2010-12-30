@@ -270,9 +270,11 @@ SqlRunner::QueueQuery (int queryHandle,
                           RequestType type,
                                 const QString & cmd)
 {
+  static int callCount (0);
   RequestStruct req (type);
   bool ok (false);
   requestLock.lock ();
+  callCount++;
   if (queryMap.contains (queryHandle)) {
     SqlRunQuery * query = queryMap[queryHandle];
     req.requestId = nextRequest++;
@@ -285,7 +287,12 @@ SqlRunner::QueueQuery (int queryHandle,
     requestList.append (req);
   }
   requestLock.unlock ();
-  WakeAll ();
+  bool yield (false);
+  if (callCount > 32) {
+    callCount = 0;
+    yield = true;
+  }
+  WakeAll (yield);
 }
 
 void
@@ -452,10 +459,12 @@ SqlRunner::database (int dbHandle)
 }
 
 void
-SqlRunner::WakeAll ()
+SqlRunner::WakeAll (bool yield)
 {
   idleWait.wakeAll ();
-  QThread::yieldCurrentThread();
+  if (yield) {
+    QThread::yieldCurrentThread();
+  }
 }
 
 } // namespace

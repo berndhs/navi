@@ -36,15 +36,21 @@ private slots:
   void License ();
   void Exiting ();
 
+  void SendSomeRequests ();
+  void KickRequestQueue ();
   void LatLonButton ();
   void ParcelButton ();
   void FeatureButton ();
   void HandleRangeNodes (int reqId, const QStringList & nodes);
   void HandleLatLon (int reqId, double lat, double lon);
+  void HandleTagList (int reqId, const TagList & tagList);
 
 private:
 
-  void AskNodeDetails (QTreeWidgetItem * item, const QString & nodeId);
+  void QueueAskNodeDetails (QTreeWidgetItem * item, 
+                            const QString & nodeId);
+  void AskLatLon (QTreeWidgetItem * item, const QString & nodeId);
+  void AskNodeTagList (QTreeWidgetItem * item, const QString & nodeId);
 
   enum CellType {
        Cell_NoType = 0,
@@ -57,15 +63,22 @@ private:
        Cell_Bad
   };
 
-  enum DestType {
-       Dest_None = 0,
-       Dest_LatLon,
-       Dest_Tag,
-       Dest_Bad
+  enum RequestType {
+       Req_None = 0,
+       Req_LatLon,
+       Req_NodeTagList,
+       Req_Tag,
+       Req_Bad
   };
 
   struct ResponseStruct {
-    DestType          type;
+    RequestType          type;
+    QTreeWidgetItem  *destItem;
+  };
+
+  struct RequestStruct {
+    RequestType       type;
+    QString           id;
     QTreeWidgetItem  *destItem;
   };
    
@@ -86,7 +99,8 @@ private:
 
   QSet <QString>  nodeSet;
   
-  QMap <int, ResponseStruct>  dbRequests;
+  QMap <int, ResponseStruct>  requestInDB;
+  QList <RequestStruct>       requestToSend;
 
 
 } ;

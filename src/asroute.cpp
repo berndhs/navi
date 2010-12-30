@@ -250,7 +250,7 @@ AsRoute::HandleRangeNodes (int reqId, const QStringList & nodes)
   for (int n=0;n<nodes.count();n++) {
     nodeSet.insert (nodes.at(n));
   }
-  dbRequests.remove (reqId);
+  requestInDB.remove (reqId);
 qDebug () << " list count " << nodes.count() << " set count " << nodeSet.count();
   ListNodes();
 }
@@ -258,13 +258,32 @@ qDebug () << " list count " << nodes.count() << " set count " << nodeSet.count()
 void
 AsRoute::HandleLatLon (int reqId, double lat, double lon)
 {
-  if (dbRequests.contains (reqId)) {
-    QTreeWidgetItem *item = dbRequests[reqId].destItem;
+  if (requestInDB.contains (reqId)) {
+    QTreeWidgetItem *item = requestInDB[reqId].destItem;
     if (item) {
       item->setText (1,QString::number (lat));
       item->setText (2,QString::number (lon));
     }
-    dbRequests.remove (reqId);
+    requestInDB.remove (reqId);
+  }
+}
+
+void
+AsRoute::HandleTagList (int reqId, const TagList & tagList)
+{
+  if (!requestInDB.contains (reqId)) {
+    return;
+  }
+  QTreeWidgetItem * treeItem = requestInDB[reqId].destItem;
+  if (treeItem == 0) {
+    return;
+  }
+  for (int t=0; t<tagList.count(); t++) {
+    TagItemType tag = tagList.at(t);
+    QTreeWidgetItem * tagItem = new QTreeWidgetItem;
+    tagItem->setText (0, tag.first);
+    tagItem->setText (1, tag.second);
+    treeItem->addChild (tagItem);
   }
 }
 
@@ -280,21 +299,76 @@ qDebug () << "ListNodes in thread " << QThread::currentThread();
   for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
     QTreeWidgetItem *nodeItem = new QTreeWidgetItem (Cell_Node);
     nodeItem->setText (0,QString("node %1").arg(*nit));
-    AskNodeDetails (nodeItem, *nit);
+    QueueAskNodeDetails (nodeItem, *nit);
     nodeList.append (nodeItem);
   }
   listItem->addChildren (nodeList);
   mainUi.featureDisplay->addTopLevelItem (listItem);
+  KickRequestQueue ();
 }
 
 void
-AsRoute::AskNodeDetails (QTreeWidgetItem * item, const QString & nodeId)
+AsRoute::KickRequestQueue ()
+{
+  QTimer::singleShot (50, this, SLOT (SendSomeRequests()));
+}
+
+void
+AsRoute::QueueAskNodeDetails (QTreeWidgetItem * item, const QString & id)
+{
+  RequestStruct llReq;
+  llReq.type = Req_LatLon;
+  llReq.destItem = item;
+  llReq.id = id;
+  requestToSend.append (llReq);
+  RequestStruct tagReq;
+  tagReq.type = Req_NodeTagList;
+  tagReq.id = id;
+  tagReq.destItem = item;
+  requestToSend.append (tagReq);
+}
+
+void
+AsRoute::SendSomeRequests ()
+{
+  int some (128);
+  while (some > 0 && !requestToSend.isEmpty()) {
+    some--;
+    RequestStruct req = requestToSend.takeFirst();
+    switch (req.type) {
+    case Req_LatLon:
+      AskLatLon (req.destItem, req.id);
+      break;
+    case Req_NodeTagList:
+      AskNodeTagList (req.destItem, req.id);
+      break;
+    default:
+      break;
+    }
+  }
+  if (!requestToSend.isEmpty ()) {
+    KickRequestQueue();
+  }
+}
+
+void
+AsRoute::AskLatLon (QTreeWidgetItem * item, const QString & nodeId)
 {
   ResponseStruct resp;
   resp.destItem = item;
-  resp.type = Dest_LatLon;
+  resp.type = Req_LatLon;
   int reqId = db.AskLatLon (nodeId);
-  dbRequests[reqId] = resp;
+  requestInDB[reqId] = resp;
+}
+
+void
+AsRoute::AskNodeTagList (QTreeWidgetItem *item, const QString & nodeId)
+{
+  ResponseStruct resp;
+  resp.destItem = item;
+  resp.type = Req_NodeTagList;
+  int reqId = db.AskNodeTagList (nodeId);
+  requestInDB[reqId] = resp;
 }
 
 } // namespace

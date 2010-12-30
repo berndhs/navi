@@ -24,6 +24,7 @@
  ****************************************************************/
 
 #include "sql-runner.h"
+#include "navi-types.h"
 
 using namespace deliberate;
 
@@ -67,6 +68,7 @@ public:
   int AskRangeNodes (double south, double west, 
                       double north, double east);
   int AskLatLon (const QString & nodeId);
+  int AskNodeTagList (const QString & nodeId);
 
 private slots:
 
@@ -78,6 +80,7 @@ signals:
 
   void HaveRangeNodes (int requestId, const QStringList & nodeList);
   void HaveLatLon (int requestId, double lat, double lon);
+  void HaveTagList (int requestId, const TagList & tagList);
 
 
 private:
@@ -92,6 +95,7 @@ private:
   void CheckElementType (SqlRunQuery *query, bool ok);
   void ReturnRangeNodes (SqlRunQuery *query, bool ok);
   void ReturnLatLon (SqlRunQuery *query, bool ok);
+  void ReturnTagList (SqlRunQuery *query, bool ok);
   void MakeElement (SqlRunDatabase * db, const QString & elementName);
 
   struct DbState {
@@ -105,7 +109,8 @@ private:
     Query_IgnoreResult = 1,
     Query_AskElement,
     Query_AskRangeNodes,
-    Query_AskLatLon
+    Query_AskLatLon,
+    Query_AskTagList
   };
 
   struct QueryState {

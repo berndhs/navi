@@ -172,11 +172,9 @@ qDebug () << " Finishe unknown query " << query;
 qDebug () << " Finishe type " << type;
   switch (type) {
   case Query_IgnoreResult:
-     query->deleteLater();
      break;
   case Query_AskElement:
      CheckElementType (query,ok);
-     query->deleteLater();
      break;
   case Query_AskRangeNodes:
      ReturnRangeNodes (query, ok);
@@ -184,11 +182,14 @@ qDebug () << " Finishe type " << type;
   case Query_AskLatLon:
      ReturnLatLon (query, ok);
      break;
+  case Query_AskTagList:
+     ReturnTagList (query, ok);
+     break;
   default:
      qDebug () << " Not Handling Query " << type;
-     query->deleteLater();
      break;
   }
+  query->deleteLater();
   queryMap.remove (query);
 }
 
@@ -273,11 +274,33 @@ int
 AsDbManager::AskLatLon (const QString & nodeid)
 {
   SqlRunQuery *query = runner->newQuery(geoBase);
+  if (!query) {
+    qDebug () << "QUery allocation failed";
+    return -1;
+  }
   QString cmd ("select lat, lon from nodes where nodeid=\"%1\"");
   QueryState qstate;
   qstate.type = Query_AskLatLon;
   int reqId = nextRequest++;
   qstate.reqId = reqId;
+  qstate.db = geoBase;
+  queryMap[query] = qstate;
+  query->exec (cmd.arg(nodeid));
+  return reqId;
+}
+
+int
+AsDbManager::AskNodeTagList (const QString & nodeid)
+{
+  SqlRunQuery *query = runner->newQuery(geoBase);
+  if (!query) {
+    qDebug () << "QUery allocation failed";
+    return -1;
+  }
+  QString cmd ("select key, value from nodetags where nodeid=\"%1\"");
+  QueryState qstate;
+  qstate.type = Query_AskTagList;
+  int reqId = nextRequest++;
   qstate.db = geoBase;
   queryMap[query] = qstate;
   query->exec (cmd.arg(nodeid));
@@ -310,6 +333,22 @@ AsDbManager::ReturnLatLon (SqlRunQuery * query, bool ok)
   }
   int reqId = queryMap[query].reqId;
   emit HaveLatLon (reqId, lat, lon);
+}
+
+void
+AsDbManager::ReturnTagList (SqlRunQuery * query, bool ok)
+{
+  TagList tagList;
+  if (ok && query) {
+    while (query->next()) {
+      TagItemType tag;
+      tag.first = query->value (0).toString();
+      tag.second = query->value (1).toString ();
+      tagList.append (tag);
+    }
+  }
+  int reqId = queryMap[query].reqId;
+  emit HaveTagList (reqId, tagList);
 }
 
 } // namespace
