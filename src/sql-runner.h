@@ -156,6 +156,8 @@ private:
 
   void BuildResults (SqlRunQuery * query);
 
+  void WakeAll ();
+
   SqlRunDatabase * database (int dbHandle);
 
   QMutex          requestLock;

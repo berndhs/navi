@@ -106,7 +106,7 @@ void
 SqlRunner::Wake ()
 {
   if (!doneQuit) {
-    idleWait.wakeAll ();
+    WakeAll ();
   }
 }
 
@@ -128,21 +128,21 @@ SqlRunner::run ()
   }
   CloseAll ();
   doneQuit = true;
-qDebug () << " exit run() " << QThread::currentThread();
   return;
 }
 
 bool
 SqlRunner::DoWork ()
 {
+  requestLock.lock ();
   if (requestList.isEmpty ()) {
+    requestLock.unlock ();
     return false;
   }
   RequestStruct req = requestList.takeFirst();
-qDebug () << " DoWork " << req.type;
+  requestLock.unlock ();
   switch (req.type) {
   case Req_Open:
-qDebug () << " call DoOpen ";
     DoOpen (req);
     break;
   case Req_Close:
@@ -163,7 +163,6 @@ qDebug () << " call DoOpen ";
   default:
     break;
   }
-qDebug () << " back from switch ";
   return true;
 }
 
@@ -174,21 +173,15 @@ SqlRunner::SendSignals ()
     SignalStruct sig = signalList.takeFirst ();
     switch (sig.type) {
     case Sig_Op:
-qDebug () << " emit Finished Op" << queryMap[sig.value0] << sig.okFlag;
       emit Finished (queryMap[sig.value0], sig.okFlag);
       break;
     case Sig_Open:
-qDebug () << " emit Opened " << sig.value0 << dbaseMap[sig.value0] << sig.okFlag;
       emit Opened (dbaseMap[sig.value0], sig.okFlag);
       break;
     case Sig_Close:
-qDebug () << " emit Closed " << dbaseMap[sig.value0];
       emit Closed (dbaseMap[sig.value0]);
       break;
     case Sig_Result:
-qDebug () << " emit from thread " << QThread::currentThread();
-qDebug () << " emit for sig value0 " << sig.value0;
-qDebug () << " emit Finished Result" << queryMap[sig.value0] << sig.okFlag;
       emit Finished (queryMap[sig.value0], sig.okFlag);
       break;
     default:
@@ -208,7 +201,7 @@ SqlRunner::RequestOpen (int dbHandle)
   req.openId = dbHandle;
   requestList.append (req);
   requestLock.unlock ();
-  idleWait.wakeAll ();
+  WakeAll ();
 }
 
 void
@@ -220,14 +213,13 @@ SqlRunner::RequestClose (int openId)
   req.requestId = nextRequest++;
   requestList.append (req);
   requestLock.unlock ();
-  idleWait.wakeAll ();
+  WakeAll ();
 }
 
 void
 SqlRunner::RequestExec (int queryHandle,
                         const QString & cmd)
 {
-qDebug () << "RequestExec " << cmd;
   QueueQuery (queryHandle, Req_ExecString, cmd);
 }
 
@@ -260,7 +252,7 @@ SqlRunner::RequestBind (int prepareId,
   requestLock.lock ();
   requestList.append (req);
   requestLock.unlock ();
-  idleWait.wakeAll ();
+  WakeAll ();
 }
 
 void
@@ -280,9 +272,7 @@ SqlRunner::QueueQuery (int queryHandle,
 {
   RequestStruct req (type);
   bool ok (false);
-qDebug () << " Queue Query " << cmd;
   requestLock.lock ();
-qDebug () << "    have lock ";
   if (queryMap.contains (queryHandle)) {
     SqlRunQuery * query = queryMap[queryHandle];
     req.requestId = nextRequest++;
@@ -295,19 +285,15 @@ qDebug () << "    have lock ";
     requestList.append (req);
   }
   requestLock.unlock ();
-  idleWait.wakeAll ();
-qDebug () << " unlocked ";
+  WakeAll ();
 }
 
 void
 SqlRunner::DoOpen (RequestStruct & req)
 {
-qDebug () << " DoOpen ";
   QSqlDatabase *db = new QSqlDatabase ;
   (*db) = QSqlDatabase::addDatabase ("QSQLITE");
   db->setDatabaseName (req.data);
-qDebug () << " db name " << req.data;
-qDebug () << " db ptr " << db;
   bool ok = db->open ();
   if (ok) {
     SqlRunDatabase * sdb = dbaseMap[req.openId];
@@ -318,7 +304,6 @@ qDebug () << " db ptr " << db;
   SignalStruct sig (Sig_Open);
   sig.okFlag = ok;
   sig.value0 = req.openId;
-qDebug () << " open for " << req.data << " ok " << ok;
   signalList.append (sig);
 }
 
@@ -345,18 +330,12 @@ SqlRunner::DoExec (RequestStruct & req, bool useString)
     bool ok;
     qry->execStarted = true;
     qry->result.clear ();
-qDebug () << " DoExec queryId " << sig.value0 << " query " << qry
-          << " sql-query " << qry->sqlQuery;
     if (useString) {
       ok = qry->sqlQuery->exec (req.data);
-qDebug () << " try query with " << req.data;
     } else {
       ok = qry->sqlQuery->exec ();
-qDebug () << " try query without " << req.data;
     }
     sig.okFlag = ok;
-qDebug () << " query result " << ok 
-          << " did " << qry->sqlQuery->executedQuery();
     BuildResults (qry);
     qry->finished = true;
     qry->didQuery = qry->sqlQuery->executedQuery();
@@ -415,7 +394,6 @@ SqlRunner::BuildResults (SqlRunQuery * query)
   }
   QSqlRecord rec = sqry->record();
   int cols = rec.count();
-qDebug () << " BuildResults columns " << cols;
   int numRows (0);
   query->currentRow = -1;
   while (sqry->next()) {
@@ -432,19 +410,19 @@ qDebug () << " BuildResults columns " << cols;
 SqlRunQuery*
 SqlRunner::newQuery (SqlRunDatabase * db)
 {
-  if (revDbaseMap.contains (db)) {
-    QSqlQuery *sqry = new QSqlQuery (*(db->sqlDB));
-    int dbHandle = db->openId;
-    int queryHandle = nextRequest++;
-    SqlRunQuery * qry = new SqlRunQuery (this, sqry, 
-                            dbHandle, queryHandle);
-    requestLock.lock();
-    queryMap[queryHandle] = qry;
-    requestLock.unlock();
-    return qry;
-  } else {
-    return 0;
+  requestLock.lock();
+  QSqlDatabase * sdb = db->sqlDB;
+  if (!sdb) {
+    qFatal ( "no SQL Database in runner");
   }
+  QSqlQuery *sqry = new QSqlQuery (*sdb);
+  int dbHandle = db->openId;
+  int queryHandle = nextRequest++;
+  SqlRunQuery * qry = new SqlRunQuery (this, sqry, 
+                          dbHandle, queryHandle);
+  queryMap[queryHandle] = qry;
+  requestLock.unlock();
+  return qry;
 }
 
 SqlRunDatabase*
@@ -471,6 +449,13 @@ SqlRunner::database (int dbHandle)
   } else {
     return 0;
   }
+}
+
+void
+SqlRunner::WakeAll ()
+{
+  idleWait.wakeAll ();
+  QThread::yieldCurrentThread();
 }
 
 } // namespace

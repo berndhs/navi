@@ -31,6 +31,8 @@
 #include <QThread>
 #include <QDebug>
 
+#include <unistd.h>
+
 using namespace deliberate;
 
 namespace navi
@@ -275,14 +277,10 @@ qDebug () << "ListNodes in thread " << QThread::currentThread();
   listItem->setText (0,QString ("found %1 Nodes")
                         .arg (nodeSet.count()));
   QList <QTreeWidgetItem*> nodeList;
-int row(0);
   for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
     QTreeWidgetItem *nodeItem = new QTreeWidgetItem (Cell_Node);
     nodeItem->setText (0,QString("node %1").arg(*nit));
-row++;
-    if (row < 3000) {
-      AskNodeDetails (nodeItem, *nit);
-    }
+    AskNodeDetails (nodeItem, *nit);
     nodeList.append (nodeItem);
   }
   listItem->addChildren (nodeList);
