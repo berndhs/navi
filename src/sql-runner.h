@@ -163,6 +163,7 @@ private:
   QMutex          idleLock;
   QWaitCondition  idleWait;
   bool            doQuit;
+  bool            doneQuit;
 
   QList <RequestStruct>  requestList;
   QList <SignalStruct>   signalList;

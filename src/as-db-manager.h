@@ -64,12 +64,21 @@ public:
                    quint64 parcelIndex);
   void WriteWayParcel (const QString & wayId,
                   quint64 parcelIndex); 
+  int AskRangeNodes (double south, double west, 
+                      double north, double east);
+  int AskLatLon (const QString & nodeId);
 
 private slots:
 
   void CatchOpen (SqlRunDatabase* db, bool ok);
   void CatchClose (SqlRunDatabase *db);
   void CatchFinished (SqlRunQuery *query, bool ok);
+
+signals:
+
+  void HaveRangeNodes (int requestId, const QStringList & nodeList);
+  void HaveLatLon (int requestId, double lat, double lon);
+
 
 private:
 
@@ -81,6 +90,8 @@ private:
   void ContinueCheck (SqlRunDatabase * db);
   void AskElementType (SqlRunDatabase * db, const QString & eltName);
   void CheckElementType (SqlRunQuery *query, bool ok);
+  void ReturnRangeNodes (SqlRunQuery *query, bool ok);
+  void ReturnLatLon (SqlRunQuery *query, bool ok);
   void MakeElement (SqlRunDatabase * db, const QString & elementName);
 
   struct DbState {
@@ -92,11 +103,14 @@ private:
   enum QueryType {
     Query_None = 0,
     Query_IgnoreResult = 1,
-    Query_AskElement
+    Query_AskElement,
+    Query_AskRangeNodes,
+    Query_AskLatLon
   };
 
   struct QueryState {
     bool            finished;
+    int             reqId;
     QueryType       type;
     SqlRunDatabase *db;
     QVariant        data;
@@ -112,6 +126,7 @@ private:
 
   SqlRunner       *runner;
   SqlRunDatabase  *geoBase;
+  int    nextRequest;
 };
 
 } // namespace

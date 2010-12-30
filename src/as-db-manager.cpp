@@ -27,6 +27,7 @@
 #include <QDesktopServices>
 #include <QTimer>
 #include <QByteArray>
+#include <QStringList>
 #include "deliberate.h"
 #include "sql-run-database.h"
 #include "sql-run-query.h"
@@ -40,7 +41,8 @@ namespace navi
 
 AsDbManager::AsDbManager (QObject *parent)
   :QObject (parent),
-   geoBase (0)
+   geoBase (0),
+   nextRequest (111)
 {
   runner = new SqlRunner;
   Connect ();
@@ -151,6 +153,7 @@ AsDbManager::CatchOpen (SqlRunDatabase *db, bool ok)
 void
 AsDbManager::CatchClose (SqlRunDatabase *db)
 {
+  Q_UNUSED (db)
   QMessageBox box;
   box.setText (QString("Ignore Close"));
   QTimer::singleShot (10000, &box, SLOT (accept()));
@@ -160,11 +163,13 @@ AsDbManager::CatchClose (SqlRunDatabase *db)
 void
 AsDbManager::CatchFinished (SqlRunQuery *query, bool ok)
 {
-  QMessageBox box;
+qDebug () << " Catch Finished " << query;
   if (!queryMap.contains(query)) {
+qDebug () << " Finishe unknown query " << query;
     return;  // ignore bad results
   }
   QueryType type = queryMap[query].type;
+qDebug () << " Finishe type " << type;
   switch (type) {
   case Query_IgnoreResult:
      query->deleteLater();
@@ -172,6 +177,12 @@ AsDbManager::CatchFinished (SqlRunQuery *query, bool ok)
   case Query_AskElement:
      CheckElementType (query,ok);
      query->deleteLater();
+     break;
+  case Query_AskRangeNodes:
+     ReturnRangeNodes (query, ok);
+     break;
+  case Query_AskLatLon:
+     ReturnLatLon (query, ok);
      break;
   default:
      qDebug () << " Not Handling Query " << type;
@@ -237,6 +248,68 @@ AsDbManager::MakeElement (SqlRunDatabase * db, const QString & elementName)
   SqlRunQuery * query = runner->newQuery (db);
   queryMap[query] = qstate;
   query->exec (cmd);
+}
+
+int
+AsDbManager::AskRangeNodes (double south, double west,
+                            double north, double east)
+{
+  SqlRunQuery *query = runner->newQuery(geoBase);
+  QString cmd ("select nodeid from nodes where "
+               " lat >= %1 AND lat <= %2 "
+               " AND "
+               " lon >= %3 AND lon <= %4 ");
+  QueryState qstate;
+  qstate.type = Query_AskRangeNodes;
+  int reqId = nextRequest++;
+  qstate.reqId = reqId;
+  qstate.db = geoBase;
+  queryMap[query] = qstate;
+  query->exec (cmd.arg (south).arg(north).arg (west).arg(east));
+  return reqId;
+}
+
+int
+AsDbManager::AskLatLon (const QString & nodeid)
+{
+  SqlRunQuery *query = runner->newQuery(geoBase);
+  QString cmd ("select lat, lon from nodes where nodeid=\"%1\"");
+  QueryState qstate;
+  qstate.type = Query_AskLatLon;
+  int reqId = nextRequest++;
+  qstate.reqId = reqId;
+  qstate.db = geoBase;
+  queryMap[query] = qstate;
+  query->exec (cmd.arg(nodeid));
+  return reqId;
+}
+
+void
+AsDbManager::ReturnRangeNodes (SqlRunQuery * query, bool ok)
+{
+  QStringList nodeList;
+  if (ok && query) {
+    while (query->next()) {
+      nodeList.append (query->value(0).toString());
+    }
+  }
+  int reqId = queryMap[query].reqId;
+  emit HaveRangeNodes (reqId, nodeList);
+}
+
+void
+AsDbManager::ReturnLatLon (SqlRunQuery * query, bool ok)
+{
+  double lat (0.0);
+  double lon (0.0);
+  if (ok && query) {
+    if (query->next()) {
+      lat = query->value(0).toDouble();
+      lon = query->value(1).toDouble();
+    }
+  }
+  int reqId = queryMap[query].reqId;
+  emit HaveLatLon (reqId, lat, lon);
 }
 
 } // namespace

@@ -73,7 +73,7 @@ private:
   SqlRunner        *dbRunner;
   QSqlQuery        *sqlQuery;
 
-  QList <QVector<QVariant> >  result;
+  QList <QMap<int, QVariant> >  result;
   int               currentRow;
   int               numRows;
   int               rowsChanged;

@@ -27,6 +27,7 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlRecord>
+#include <QThread>
 #include "sql-run-query.h"
 #include "sql-run-database.h"
 
@@ -35,9 +36,11 @@ namespace deliberate
 
 SqlRunner::SqlRunner ()
   :doQuit (false),
+   doneQuit (false),
    nextRequest (4242)
 {
   wakeTimer = new QTimer (this);
+  setAutoDelete (false);
   connect (wakeTimer, SIGNAL (timeout()), this, SLOT (Wake()));
 }
 
@@ -93,19 +96,24 @@ SqlRunner::Start (int priority)
 void
 SqlRunner::Stop ()
 {
-  doQuit = true;
-  idleWait.wakeAll();
+  if (!doneQuit) {
+    doQuit = true;
+    idleWait.wakeAll();
+  }
 }
 
 void
 SqlRunner::Wake ()
 {
-  idleWait.wakeAll ();
+  if (!doneQuit) {
+    idleWait.wakeAll ();
+  }
 }
 
 void
 SqlRunner::run ()
 {
+  doneQuit = false;
   while (!doQuit) {
     idleLock.lock();   
     idleWait.wait (&idleLock);
@@ -119,6 +127,8 @@ SqlRunner::run ()
     idleLock.unlock ();
   }
   CloseAll ();
+  doneQuit = true;
+qDebug () << " exit run() " << QThread::currentThread();
   return;
 }
 
@@ -164,7 +174,7 @@ SqlRunner::SendSignals ()
     SignalStruct sig = signalList.takeFirst ();
     switch (sig.type) {
     case Sig_Op:
-qDebug () << " emit Finished " << queryMap[sig.value0] << sig.okFlag;
+qDebug () << " emit Finished Op" << queryMap[sig.value0] << sig.okFlag;
       emit Finished (queryMap[sig.value0], sig.okFlag);
       break;
     case Sig_Open:
@@ -176,7 +186,9 @@ qDebug () << " emit Closed " << dbaseMap[sig.value0];
       emit Closed (dbaseMap[sig.value0]);
       break;
     case Sig_Result:
-qDebug () << " emit Finished " << dbaseMap[sig.value0] << sig.okFlag;
+qDebug () << " emit from thread " << QThread::currentThread();
+qDebug () << " emit for sig value0 " << sig.value0;
+qDebug () << " emit Finished Result" << queryMap[sig.value0] << sig.okFlag;
       emit Finished (queryMap[sig.value0], sig.okFlag);
       break;
     default:
@@ -332,14 +344,19 @@ SqlRunner::DoExec (RequestStruct & req, bool useString)
     }
     bool ok;
     qry->execStarted = true;
-qDebug () << " try query " << req.data;
     qry->result.clear ();
+qDebug () << " DoExec queryId " << sig.value0 << " query " << qry
+          << " sql-query " << qry->sqlQuery;
     if (useString) {
       ok = qry->sqlQuery->exec (req.data);
+qDebug () << " try query with " << req.data;
     } else {
       ok = qry->sqlQuery->exec ();
+qDebug () << " try query without " << req.data;
     }
     sig.okFlag = ok;
+qDebug () << " query result " << ok 
+          << " did " << qry->sqlQuery->executedQuery();
     BuildResults (qry);
     qry->finished = true;
     qry->didQuery = qry->sqlQuery->executedQuery();
@@ -398,9 +415,11 @@ SqlRunner::BuildResults (SqlRunQuery * query)
   }
   QSqlRecord rec = sqry->record();
   int cols = rec.count();
+qDebug () << " BuildResults columns " << cols;
   int numRows (0);
+  query->currentRow = -1;
   while (sqry->next()) {
-    QVector<QVariant> row(cols);
+    QMap<int, QVariant> row;
     for (int c=0; c<cols; c++) {
       row[c] = sqry->value (c);
     }

@@ -28,6 +28,8 @@
 
 #include <QMessageBox>
 #include <QTimer>
+#include <QThread>
+#include <QDebug>
 
 using namespace deliberate;
 
@@ -133,6 +135,11 @@ AsRoute::Connect ()
            this, SLOT (FeatureButton ()));
   connect (mainUi.featureDisplay, SIGNAL (itemDoubleClicked (QTreeWidgetItem*,int)),
            this, SLOT (Picked (QTreeWidgetItem*, int)));
+
+  connect (&db, SIGNAL (HaveRangeNodes (int, const QStringList &)),
+           this, SLOT (HandleRangeNodes (int, const QStringList &)));
+  connect (&db, SIGNAL (HaveLatLon (int, double, double)),
+           this, SLOT (HandleLatLon (int, double, double)));
 }
 
 void
@@ -157,6 +164,7 @@ AsRoute::CloseCleanup ()
   QSize currentSize = size();
   Settings().setValue ("sizes/main",currentSize);
   Settings().sync();
+  db.Stop ();
 }
 
 void
@@ -213,8 +221,18 @@ AsRoute::FeatureButton ()
 void
 AsRoute::LatLonButton ()
 {
-  QMessageBox::information (this, QString ("Info"), 
-                      QString("LatLon Button clicked"));
+qDebug () << "LatLonBUtton in thread " << QThread::currentThread();
+  double south = mainUi.southValue->value();
+  double north = mainUi.northValue->value();
+  double west = mainUi.westValue->value();
+  double east = mainUi.eastValue->value();
+  Settings().setValue ("defaults/south",south);
+  Settings().setValue ("defaults/north",north);
+  Settings().setValue ("defaults/east",east);
+  Settings().setValue ("defaults/west",west);
+  Settings().sync();
+  nodeSet.clear ();
+  db.AskRangeNodes (south,west, north,east);
 }
 
 void
@@ -222,6 +240,63 @@ AsRoute::ParcelButton ()
 {
   QMessageBox::information (this, QString ("Info"), 
                       QString ("Parcel Button clicked"));
+}
+
+void
+AsRoute::HandleRangeNodes (int reqId, const QStringList & nodes)
+{
+  for (int n=0;n<nodes.count();n++) {
+    nodeSet.insert (nodes.at(n));
+  }
+  dbRequests.remove (reqId);
+qDebug () << " list count " << nodes.count() << " set count " << nodeSet.count();
+  ListNodes();
+}
+
+void
+AsRoute::HandleLatLon (int reqId, double lat, double lon)
+{
+  if (dbRequests.contains (reqId)) {
+    QTreeWidgetItem *item = dbRequests[reqId].destItem;
+    if (item) {
+      item->setText (1,QString::number (lat));
+      item->setText (2,QString::number (lon));
+    }
+    dbRequests.remove (reqId);
+  }
+}
+
+void
+AsRoute::ListNodes ()
+{
+qDebug () << "ListNodes in thread " << QThread::currentThread();
+  QSet<QString>::iterator nit;
+  QTreeWidgetItem * listItem = new QTreeWidgetItem (Cell_Header);
+  listItem->setText (0,QString ("found %1 Nodes")
+                        .arg (nodeSet.count()));
+  QList <QTreeWidgetItem*> nodeList;
+int row(0);
+  for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
+    QTreeWidgetItem *nodeItem = new QTreeWidgetItem (Cell_Node);
+    nodeItem->setText (0,QString("node %1").arg(*nit));
+row++;
+    if (row < 3000) {
+      AskNodeDetails (nodeItem, *nit);
+    }
+    nodeList.append (nodeItem);
+  }
+  listItem->addChildren (nodeList);
+  mainUi.featureDisplay->addTopLevelItem (listItem);
+}
+
+void
+AsRoute::AskNodeDetails (QTreeWidgetItem * item, const QString & nodeId)
+{
+  ResponseStruct resp;
+  resp.destItem = item;
+  resp.type = Dest_LatLon;
+  int reqId = db.AskLatLon (nodeId);
+  dbRequests[reqId] = resp;
 }
 
 } // namespace

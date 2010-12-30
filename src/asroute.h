@@ -39,8 +39,12 @@ private slots:
   void LatLonButton ();
   void ParcelButton ();
   void FeatureButton ();
+  void HandleRangeNodes (int reqId, const QStringList & nodes);
+  void HandleLatLon (int reqId, double lat, double lon);
 
 private:
+
+  void AskNodeDetails (QTreeWidgetItem * item, const QString & nodeId);
 
   enum CellType {
        Cell_NoType = 0,
@@ -53,9 +57,23 @@ private:
        Cell_Bad
   };
 
+  enum DestType {
+       Dest_None = 0,
+       Dest_LatLon,
+       Dest_Tag,
+       Dest_Bad
+  };
+
+  struct ResponseStruct {
+    DestType          type;
+    QTreeWidgetItem  *destItem;
+  };
+   
+
   void Connect ();
   void CloseCleanup ();
   void SetDefaults ();
+  void ListNodes ();
 
   QApplication    *app;
   Ui_AsRouteMain   mainUi;
@@ -65,6 +83,10 @@ private:
   deliberate::HelpView        *helpView;
   RouteCellMenu  *cellMenu;
   QMap <CellType, QString > cellTypeName;
+
+  QSet <QString>  nodeSet;
+  
+  QMap <int, ResponseStruct>  dbRequests;
 
 
 } ;
