@@ -25,6 +25,7 @@
 
 #include "deliberate.h"
 #include "version.h"
+#include "sql-run-query.h"
 
 #include <QMessageBox>
 #include <QTimer>
@@ -140,6 +141,9 @@ AsRoute::Connect ()
   connect (mainUi.featureDisplay, SIGNAL (itemDoubleClicked (QTreeWidgetItem*,int)),
            this, SLOT (Picked (QTreeWidgetItem*, int)));
 
+  connect (mainUi.queryCountMax, SIGNAL (valueChanged (int)),
+           this, SLOT (ChangeMaxCount (int)));
+
   connect (&db, SIGNAL (HaveRangeNodes (int, const QStringList &)),
            this, SLOT (HandleRangeNodes (int, const QStringList &)));
   connect (&db, SIGNAL (HaveLatLon (int, double, double)),
@@ -250,6 +254,7 @@ qDebug () << "LatLonBUtton in thread " << QThread::currentThread();
   nodeSet.clear ();
   numNodeDetails = 0;
   db.AskRangeNodes (south,west, north,east);
+  UpdateLoad ();
 }
 
 void
@@ -270,6 +275,7 @@ qDebug () << " list count " << nodes.count() << " set count " << nodeSet.count()
   numNodes = nodes.count();
   mainUi.loadBar->setMaximum (numNodes);
   ListNodes();
+  UpdateLoad ();
 }
 
 void
@@ -283,6 +289,7 @@ AsRoute::HandleLatLon (int reqId, double lat, double lon)
       item->setText (2,QString::number (lon));
     }
   }
+  UpdateLoad ();
 }
 
 void
@@ -308,6 +315,7 @@ qDebug () << " no item for reqst " << reqId;
   }
   numNodeDetails ++;
   mainUi.loadBar->setValue (numNodeDetails);
+  UpdateLoad ();
 }
 
 void
@@ -335,7 +343,7 @@ qDebug () << "ListNodes in thread " << QThread::currentThread();
 void
 AsRoute::KickRequestQueue ()
 {
-  QTimer::singleShot (2000, this, SLOT (SendSomeRequests()));
+  QTimer::singleShot (100, this, SLOT (SendSomeRequests()));
 }
 
 void
@@ -395,6 +403,29 @@ AsRoute::AskNodeTagList (QTreeWidgetItem *item, const QString & nodeId)
   resp.type = Req_NodeTagList;
   int reqId = db.AskNodeTagList (nodeId);
   requestInDB[reqId] = resp;
+}
+
+void
+AsRoute::UpdateLoad ()
+{
+  int numQueries = SqlRunQuery::LiveDynamic();
+  int max = mainUi.queryCount->maximum();
+  if (max < numQueries) {
+    max = numQueries * 2;
+    mainUi.queryCountMax->setValue (max);
+  }
+  mainUi.queryCount->setValue (numQueries);
+}
+
+void
+AsRoute::ChangeMaxCount (int newmax)
+{
+  int val = mainUi.queryCount->value ();
+  int oldmax = mainUi.queryCount->maximum ();
+  if (val <= newmax && newmax != oldmax) {
+    mainUi.queryCount->setMaximum (newmax);
+    mainUi.queryCount->update();
+  }
 }
 
 } // namespace

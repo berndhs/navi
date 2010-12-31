@@ -160,6 +160,9 @@ SqlRunner::DoWork ()
   case Req_Bind:
     DoBind (req);
     break;
+  case Req_DeallocQuery:
+    DoDealloc (req);
+    break;
   default:
     break;
   }
@@ -325,6 +328,16 @@ SqlRunner::DoClose (RequestStruct &req)
 }
 
 void
+SqlRunner::DoDealloc (RequestStruct & req)
+{
+  if (queryMap.contains (req.queryId)) {
+    SqlRunQuery * qry = queryMap[req.queryId];
+    queryMap.remove (req.queryId);
+    delete qry;
+  }
+}
+
+void
 SqlRunner::DoExec (RequestStruct & req, bool useString)
 {
   SignalStruct sig (Sig_Result);
@@ -377,22 +390,6 @@ SqlRunner::DoBind (RequestStruct & req)
 }
 
 void
-SqlRunner::DoDealloc (RequestStruct & req)
-{
-  if (queryMap.contains (req.queryId)) {
-    SqlRunQuery * qry = queryMap[req.queryId];
-    if (qry) {
-      QSqlQuery * sqry = qry->sqlQuery;
-      if (sqry) {
-        delete sqry;
-      }
-      delete qry;
-    }
-    queryMap.remove (req.queryId);
-  }
-}
-
-void
 SqlRunner::BuildResults (SqlRunQuery * query)
 {
   QSqlQuery * sqry = query->sqlQuery;
@@ -422,10 +419,9 @@ SqlRunner::newQuery (SqlRunDatabase * db)
   if (!sdb) {
     qFatal ( "no SQL Database in runner");
   }
-  QSqlQuery *sqry = new QSqlQuery (*sdb);
   int dbHandle = db->openId;
   int queryHandle = nextRequest++;
-  SqlRunQuery * qry = new SqlRunQuery (this, sqry, 
+  SqlRunQuery * qry = new SqlRunQuery (this, sdb, 
                           dbHandle, queryHandle);
   queryMap[queryHandle] = qry;
   requestLock.unlock();

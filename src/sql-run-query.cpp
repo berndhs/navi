@@ -23,24 +23,58 @@
  ****************************************************************/
 
 #include "sql-runner.h"
+#include <QSqlDatabase>
+#include <QSqlQuery>
+
 
 namespace deliberate
 {
+int                  SqlRunQuery::liveDynamic (0);
 
-SqlRunQuery::SqlRunQuery (SqlRunner * r, QSqlQuery * sqry,
+SqlRunQuery::SqlRunQuery (SqlRunner * r, QSqlDatabase * sdb,
                            int dbh, int qh)
  :finished (false),
   execStarted (false),
   dbHandle (dbh),
   queryHandle (qh),
   dbRunner (r),
-  sqlQuery (sqry),
+  sqlQuery (0),
   rowsChanged (-1)
 {
+  if (sdb) {
+    sqlQuery = new QSqlQuery (*sdb);
+  }
 }
 
 SqlRunQuery::~SqlRunQuery ()
 {
+  if (sqlQuery) {
+    delete sqlQuery;
+    sqlQuery = 0;
+  }
+}
+
+void*
+SqlRunQuery::operator new (size_t size)
+{
+  void * pQ (0);
+  pQ = malloc (size);
+  liveDynamic++;
+  return pQ;
+}
+
+void
+SqlRunQuery::operator delete (void * p)
+{
+  SqlRunQuery * pQ = static_cast <SqlRunQuery*> (p);
+  free (pQ);
+  liveDynamic--;
+}
+
+void
+SqlRunQuery::clear ()
+{
+  result.clear ();
 }
 
 bool

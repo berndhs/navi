@@ -45,6 +45,7 @@ private slots:
   void HandleRangeNodes (int reqId, const QStringList & nodes);
   void HandleLatLon (int reqId, double lat, double lon);
   void HandleTagList (int reqId, const TagList & tagList);
+  void ChangeMaxCount (int newmax);
 
 private:
 
@@ -52,6 +53,7 @@ private:
                             const QString & nodeId);
   void AskLatLon (QTreeWidgetItem * item, const QString & nodeId);
   void AskNodeTagList (QTreeWidgetItem * item, const QString & nodeId);
+  void UpdateLoad ();
 
   enum CellType {
        Cell_NoType = 0,

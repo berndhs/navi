@@ -28,7 +28,10 @@
 #include <QList>
 #include <QtSql>
 
+#include <new>
+
 class QSqlQuery;
+class QSqlDatabase;
 
 namespace deliberate
 {
@@ -60,11 +63,17 @@ public:
   SqlRunDatabase *database();
   void            deleteLater ();
 
+  void * operator new (size_t size);
+  void   operator delete (void * p);
+
+  static int LiveDynamic () { return liveDynamic; }
+
 private:
 
-  SqlRunQuery (SqlRunner * r, QSqlQuery * qry, int dbh, int qh);
+  SqlRunQuery (SqlRunner * r, QSqlDatabase * sdb, int dbh, int qh);
 
   ~SqlRunQuery ();
+  void clear ();
 
   bool              finished;
   bool              execStarted;
@@ -81,7 +90,9 @@ private:
 
   friend class SqlRunner;
   friend class SqlRunDatabase;
-  
+    
+  static int liveDynamic;
+
 };
 
 } // namespace
