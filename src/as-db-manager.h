@@ -41,6 +41,8 @@ public:
   void Start ();
   void Stop ();
 
+  int PendingRequestCount ();
+
   void WriteNode (const QString & nodeId,
                         double  lat,
                         double  lon);

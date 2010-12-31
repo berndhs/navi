@@ -61,6 +61,8 @@ public:
   SqlRunDatabase  *openDatabase (const QString & filename);
   SqlRunQuery     *newQuery (SqlRunDatabase * db);
 
+  int PendingRequests ();
+
 signals:
 
   void Finished (SqlRunQuery * query, bool ok);

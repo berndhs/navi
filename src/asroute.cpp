@@ -365,8 +365,12 @@ AsRoute::QueueAskNodeDetails (QTreeWidgetItem * item, const QString & id)
 void
 AsRoute::SendSomeRequests ()
 {
-  int some (1024);
-  while (some > 0 && !requestToSend.isEmpty()) {
+  static const int MaxSend (1*1024);
+  static const int MaxPending (2*1024);
+  int some (MaxSend);
+  while (some > 0 
+         && !requestToSend.isEmpty()
+         && db.PendingRequestCount() < MaxPending) {
     some--;
     RequestStruct req = requestToSend.takeFirst();
     switch (req.type) {

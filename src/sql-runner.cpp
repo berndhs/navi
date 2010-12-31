@@ -52,6 +52,12 @@ SqlRunner::~SqlRunner ()
   requestList.clear ();
 }
 
+int
+SqlRunner::PendingRequests ()
+{
+  return requestList.count();
+}
+
 void
 SqlRunner::CloseAll ()
 {

@@ -55,6 +55,16 @@ AsDbManager::~AsDbManager ()
   runner = 0;
 }
 
+int
+AsDbManager::PendingRequestCount ()
+{
+  if (runner) {
+    return queryMap.count ();
+  } else {
+    return -1;
+  }
+}
+
 void
 AsDbManager::Start ()
 {
