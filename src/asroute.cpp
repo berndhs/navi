@@ -129,6 +129,8 @@ AsRoute::Connect ()
            this, SLOT (About ()));
   connect (mainUi.actionLicense, SIGNAL (triggered()),
            this, SLOT (License ()));
+  connect (mainUi.actionClear, SIGNAL (triggered ()),
+           this, SLOT (Clear ()));
   connect (mainUi.latlonButton, SIGNAL (clicked()),
            this, SLOT (LatLonButton ()));
   connect (mainUi.parcelButton, SIGNAL (clicked()),
@@ -142,6 +144,8 @@ AsRoute::Connect ()
            this, SLOT (HandleRangeNodes (int, const QStringList &)));
   connect (&db, SIGNAL (HaveLatLon (int, double, double)),
            this, SLOT (HandleLatLon (int, double, double)));
+  connect (&db, SIGNAL (HaveTagList (int, const TagList &)),
+           this, SLOT (HandleTagList (int, const TagList &)));
 }
 
 void
@@ -158,6 +162,16 @@ AsRoute::Quit ()
   if (app) {
     app->quit();
   }
+}
+
+void
+AsRoute::Clear ()
+{
+  mainUi.featureDisplay->clear();
+  mainUi.logDisplay->clear();
+  nodeSet.clear ();
+  requestInDB.clear ();
+  requestToSend.clear ();
 }
 
 void
@@ -234,6 +248,7 @@ qDebug () << "LatLonBUtton in thread " << QThread::currentThread();
   Settings().setValue ("defaults/west",west);
   Settings().sync();
   nodeSet.clear ();
+  numNodeDetails = 0;
   db.AskRangeNodes (south,west, north,east);
 }
 
@@ -252,6 +267,8 @@ AsRoute::HandleRangeNodes (int reqId, const QStringList & nodes)
   }
   requestInDB.remove (reqId);
 qDebug () << " list count " << nodes.count() << " set count " << nodeSet.count();
+  numNodes = nodes.count();
+  mainUi.loadBar->setMaximum (numNodes);
   ListNodes();
 }
 
@@ -260,11 +277,11 @@ AsRoute::HandleLatLon (int reqId, double lat, double lon)
 {
   if (requestInDB.contains (reqId)) {
     QTreeWidgetItem *item = requestInDB[reqId].destItem;
+    requestInDB.remove (reqId);
     if (item) {
       item->setText (1,QString::number (lat));
       item->setText (2,QString::number (lon));
     }
-    requestInDB.remove (reqId);
   }
 }
 
@@ -272,10 +289,14 @@ void
 AsRoute::HandleTagList (int reqId, const TagList & tagList)
 {
   if (!requestInDB.contains (reqId)) {
+qDebug () << " dont know request " << reqId;
     return;
   }
+qDebug () << " handle tag response " << reqId;
   QTreeWidgetItem * treeItem = requestInDB[reqId].destItem;
+  requestInDB.remove (reqId);
   if (treeItem == 0) {
+qDebug () << " no item for reqst " << reqId;
     return;
   }
   for (int t=0; t<tagList.count(); t++) {
@@ -285,6 +306,8 @@ AsRoute::HandleTagList (int reqId, const TagList & tagList)
     tagItem->setText (1, tag.second);
     treeItem->addChild (tagItem);
   }
+  numNodeDetails ++;
+  mainUi.loadBar->setValue (numNodeDetails);
 }
 
 void
@@ -296,6 +319,8 @@ qDebug () << "ListNodes in thread " << QThread::currentThread();
   listItem->setText (0,QString ("found %1 Nodes")
                         .arg (nodeSet.count()));
   QList <QTreeWidgetItem*> nodeList;
+  numNodeDetails = 0;
+  mainUi.loadBar->setValue (numNodeDetails);
   for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
     QTreeWidgetItem *nodeItem = new QTreeWidgetItem (Cell_Node);
     nodeItem->setText (0,QString("node %1").arg(*nit));
@@ -310,7 +335,7 @@ qDebug () << "ListNodes in thread " << QThread::currentThread();
 void
 AsRoute::KickRequestQueue ()
 {
-  QTimer::singleShot (50, this, SLOT (SendSomeRequests()));
+  QTimer::singleShot (2000, this, SLOT (SendSomeRequests()));
 }
 
 void
@@ -321,6 +346,7 @@ AsRoute::QueueAskNodeDetails (QTreeWidgetItem * item, const QString & id)
   llReq.destItem = item;
   llReq.id = id;
   requestToSend.append (llReq);
+
   RequestStruct tagReq;
   tagReq.type = Req_NodeTagList;
   tagReq.id = id;
@@ -331,7 +357,7 @@ AsRoute::QueueAskNodeDetails (QTreeWidgetItem * item, const QString & id)
 void
 AsRoute::SendSomeRequests ()
 {
-  int some (128);
+  int some (1024);
   while (some > 0 && !requestToSend.isEmpty()) {
     some--;
     RequestStruct req = requestToSend.takeFirst();

@@ -163,7 +163,7 @@ AsDbManager::CatchClose (SqlRunDatabase *db)
 void
 AsDbManager::CatchFinished (SqlRunQuery *query, bool ok)
 {
-qDebug () << " Catch Finished " << query;
+qDebug () << " Catch Finished " << ok << query->executedQuery();
   if (!queryMap.contains(query)) {
 qDebug () << " Finishe unknown query " << query;
     return;  // ignore bad results
@@ -301,6 +301,7 @@ AsDbManager::AskNodeTagList (const QString & nodeid)
   QueryState qstate;
   qstate.type = Query_AskTagList;
   int reqId = nextRequest++;
+  qstate.reqId = reqId;
   qstate.db = geoBase;
   queryMap[query] = qstate;
   query->exec (cmd.arg(nodeid));
@@ -348,6 +349,7 @@ AsDbManager::ReturnTagList (SqlRunQuery * query, bool ok)
     }
   }
   int reqId = queryMap[query].reqId;
+qDebug () << " return tag list for req " << reqId;
   emit HaveTagList (reqId, tagList);
 }
 

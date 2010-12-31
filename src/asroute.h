@@ -36,6 +36,7 @@ private slots:
   void License ();
   void Exiting ();
 
+  void Clear ();
   void SendSomeRequests ();
   void KickRequestQueue ();
   void LatLonButton ();
@@ -101,6 +102,9 @@ private:
   
   QMap <int, ResponseStruct>  requestInDB;
   QList <RequestStruct>       requestToSend;
+
+  int    numNodeDetails;
+  int    numNodes;
 
 
 } ;
