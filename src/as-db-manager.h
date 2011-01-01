@@ -43,6 +43,9 @@ public:
 
   int PendingRequestCount ();
 
+  void StartTransaction ();
+  void CommitTransaction ();
+
   void WriteNode (const QString & nodeId,
                         double  lat,
                         double  lon);
@@ -87,6 +90,13 @@ signals:
 
 private:
 
+  void WriteTag (const QString & type,
+                 const QString & id,
+                    const QString & key,
+                    const QString & value);
+  void WriteParcel (const QString & type,
+                    const QString & id,
+                    quint64 parcelIndex);
   void Connect ();
   SqlRunDatabase * StartDB (const QString & dbname);
   void CheckFileExists (const QString & filename);

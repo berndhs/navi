@@ -363,4 +363,139 @@ qDebug () << " return tag list for req " << reqId;
   emit HaveTagList (reqId, tagList);
 }
 
+void
+AsDbManager::WriteNode (const QString & nodeId,
+                         double lat,
+                         double lon)
+{
+  SqlRunQuery *insert = runner->newQuery(geoBase);
+  QString cmd ("insert or replace into nodes "
+               " nodeid, lat, lon) "
+               " VALUES (\"%1\", %2, %3)");
+  insert->exec (cmd.arg(nodeId).arg(lat).arg(lon)); 
+}
+
+void
+AsDbManager::WriteWay (const QString & wayId)
+{
+  SqlRunQuery *insert = runner->newQuery(geoBase);
+  QString cmd ("insert or replace into ways "
+               " (wayid) "
+               " VALUES (\"%1\")");
+  insert->exec (cmd.arg(wayId)); 
+}
+
+void
+AsDbManager::WriteRelation (const QString & relationId)
+{
+  SqlRunQuery *insert = runner->newQuery(geoBase);
+  QString cmd ("insert or replace into relations "
+               " (relationid, lat, lon) "
+               " VALUES (\"%1\")");
+  insert->exec (cmd.arg(relationId)); 
+}
+
+void
+AsDbManager::WriteNodeParcel (const QString & nodeId, 
+                            quint64 parcelIndex)
+{
+  WriteParcel ("node",nodeId, parcelIndex);
+}
+
+void
+AsDbManager::WriteWayParcel (const QString & wayId,
+                           quint64 parcelIndex)
+{
+  WriteParcel ("way", wayId, parcelIndex);
+}
+
+
+void
+AsDbManager::WriteParcel (const QString & type,
+                        const QString & id,
+                        quint64 parcelIndex)
+{
+  QString cmd ("insert or replace into %1parcels "
+               " (%1id, parcelid) "
+               " VALUES (\"%2\", \"%3\")");
+  SqlRunQuery * insert = runner->newQuery (geoBase);
+  insert->exec (cmd.arg (type).arg(id).arg(parcelIndex));
+}
+
+void
+AsDbManager::WriteWayNode (const QString & wayId,
+                         const QString & nodeId)
+{
+  QString cmd ("insert or replace into waynodes "
+               " (wayid, nodeid) "
+               " VALUES (\"%1\", \"%2\") ");
+  SqlRunQuery * insert = runner->newQuery (geoBase);
+  insert->exec (cmd.arg(wayId).arg(nodeId));
+}
+
+void
+AsDbManager::WriteNodeTag (const QString & nodeId, 
+                     const QString & key,
+                     const QString & value)
+{
+  WriteTag ("node",nodeId, key, value);
+}
+
+void
+AsDbManager::WriteWayTag (const QString & wayId, 
+                     const QString & key,
+                     const QString & value)
+{
+  WriteTag ("way",wayId, key, value);
+}
+
+void
+AsDbManager::WriteRelationTag (const QString & relId,
+                     const QString & key,
+                     const QString & value)
+{
+  WriteTag ("relation", relId, key, value);
+}
+
+void
+AsDbManager::WriteTag (const QString & type,
+                     const QString & id,
+                     const QString & key,
+                     const QString & value)
+{
+  QString cmd ("insert or replace into %1tags "
+               " (%1id, key, value) "
+               " VALUES (\"%2\", \"%3\", \"%4\")");
+  SqlRunQuery *insert = runner->newQuery(geoBase);
+  insert->exec (cmd.arg (type).arg(id).arg(key).arg(value));
+}
+
+void
+AsDbManager::WriteRelationMember (const QString & relId,
+                                const QString & type,
+                                const QString & ref)
+{
+  QString cmd ("insert or replace into relationparts "
+               "  (relationid, othertype, otherid) "
+               " VALUES (\"%1\", \"%2\", \"%3\") ");
+  SqlRunQuery *insert = runner->newQuery(geoBase);
+  insert->exec (cmd.arg(relId).arg(type).arg(ref));
+}
+
+void
+AsDbManager::StartTransaction ()
+{
+  if (geoBase) {
+    geoBase->transaction();
+  }
+}
+
+void
+AsDbManager::CommitTransaction ()
+{
+  if (geoBase) {
+    geoBase->commit ();
+  }
+}
+
 } // namespace

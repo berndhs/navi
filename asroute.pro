@@ -33,7 +33,15 @@ CONFIG += debug_and_release
 MAKEFILE = Make_$${MYNAME}
 !include ("options.pri") {
   message ("no options.pri, using defaults")
+  EXTRA_INCLUDE += /usr/include
+  SQLRUN_LIBDIR = /usr/lib64
+} else {
+  EXTRA_INCLUDE += $${SQLRUN}/include
+  SQLRUN_LIBDIR = $${SQLRUN}/lib$${BITS_SUFFIX}
 }
+
+INCLUDEPATH += $$EXTRA_INCLUDE
+LIBS += -L$$SQLRUN_LIBDIR -lsqlrunner
 
 CONFIG(debug, debug|release) {
   DEFINES += DELIBERATE_DEBUG=1
@@ -77,9 +85,6 @@ HEADERS = \
           src/as-db-manager.h \
           src/navi-global.h \
           src/route-cell-menus.h \
-          src/sql-runner.h \
-          src/sql-run-query.h \
-          src/sql-run-database.h \
 
 
 SOURCES = \
@@ -94,7 +99,4 @@ SOURCES = \
           src/as-db-manager.cpp \
           src/navi-global.cpp \
           src/route-cell-menus.cpp \
-          src/sql-runner.cpp \
-          src/sql-run-query.cpp \
-          src/sql-run-database.cpp \
 

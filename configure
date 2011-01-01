@@ -40,6 +40,7 @@ usage () {
    echo "--help             Show this help message and quit"
    echo "--prefix=PREFIX    Install into PREFIX [${PREFIX}]"
    echo "--distro=DISTRO    Do distro specific things [${DISTRO}]"
+   echo "--sqlrun=SQLRUN    Prefix for sqlrunner library [${SQLRUN}]"
    echo
 }
 
@@ -141,6 +142,21 @@ find_lrelease () {
   fi
 }
 
+#
+#  64 bit want special lib dir
+#
+find_bits () {
+BITS_SUFFIX=
+BITS=32
+ARCH=`uname -m`
+WHERE_64=`expr index $ARCH "_64"`
+if [ $WHERE_64 -gt 1 ]
+then
+  BITS_SUFFIX=64
+  BITS=64
+fi
+}
+
 
 #
 # main configure script
@@ -149,6 +165,7 @@ find_lrelease () {
 COPYRIGHT=" Copyright (C) 2010 Bernd Stramm"
 PREFIX=/usr
 OPTIONS_FILE=options.pri
+SQLRUN=/usr
 #
 # see if we are on windows and need a special name for "make"
 #
@@ -167,6 +184,7 @@ else
   findqmake
   find_lrelease
   find_distro
+  find_bits
 fi
 
 
@@ -200,6 +218,10 @@ case $ac_option in
    ;;
   --distro)
    DISTRO=$ac_optarg
+   $ac_shift
+   ;;
+  --sqlrun)
+   SQLRUN=$ac_optarg
    $ac_shift
    ;;
   *)
@@ -239,6 +261,8 @@ cat Makefile.in >> Makefile
 echo "DISTRO = ${DISTRO}" > ${OPTIONS_FILE}
 echo "CONFIG += ${DISTRO}" >> ${OPTIONS_FILE}
 echo "DEFINES += DISTRO_${DISTRO}=1" >> ${OPTIONS_FILE}
+echo "SQLRUN = ${SQLRUN}" >> ${OPTIONS_FILE}
+echo "BITS_SUFFIX = ${BITS_SUFFIX}" >> ${OPTIONS_FILE}
 
 #
 # tell the user what to do next
@@ -253,5 +277,6 @@ showmsg ""
 showmsg 'qmake is..................' $QMAKE
 showmsg 'Installation prefix is....' $PREFIX 
 showmsg 'Distro setting is.........' $DISTRO
+showmsg 'SqlRun prefix is..........' $SQLRUN
 showmsg 'Now you can build with....' $MAKE_PROGRAM 
 
