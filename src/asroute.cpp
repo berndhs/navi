@@ -41,6 +41,7 @@ namespace navi
 AsRoute::AsRoute (QWidget *parent)
   :QMainWindow (parent),
    app (0),
+   mapWidget (0),
    db (this),
    configEdit (this),
    helpView (0),
@@ -58,6 +59,9 @@ AsRoute::AsRoute (QWidget *parent)
   cellTypeName[Cell_LatLon] = "LatLon";
   cellTypeName[Cell_Header] = "Header";
   cellTypeName[Cell_Bad] = "Bad";
+  mapWidget = new MapDisplay (0);
+  mapWidget->resize (300,250);
+  mapWidget->hide ();
   Connect ();
 }
 
@@ -108,15 +112,11 @@ AsRoute::SetDefaults ()
   Settings().setValue ("defaults/east",east);
   west = Settings().value ("defaults/west",west).toDouble();
   Settings().setValue ("defaults/west",west);
-  quint64 parcel (0);
-  parcel = Settings().value ("defaults/parcel",parcel).toULongLong();
-  Settings().setValue ("defaults/parcel",parcel);
   Settings().sync();
   mainUi.southValue->setValue (south);
   mainUi.northValue->setValue (north);
   mainUi.westValue->setValue (west);
   mainUi.eastValue->setValue (east);
-  mainUi.parcelEdit->setText (QString::number(parcel));
 }
 
 void
@@ -134,12 +134,19 @@ AsRoute::Connect ()
            this, SLOT (Clear ()));
   connect (mainUi.latlonButton, SIGNAL (clicked()),
            this, SLOT (LatLonButton ()));
-  connect (mainUi.parcelButton, SIGNAL (clicked()),
-           this, SLOT (ParcelButton ()));
+  connect (mainUi.waysButton, SIGNAL (clicked()),
+           this, SLOT (FindWays ()));
   connect (mainUi.featureButton, SIGNAL (clicked()),
            this, SLOT (FeatureButton ()));
   connect (mainUi.featureDisplay, SIGNAL (itemDoubleClicked (QTreeWidgetItem*,int)),
            this, SLOT (Picked (QTreeWidgetItem*, int)));
+
+  connect (mainUi.showmapButton, SIGNAL (clicked()),
+           this, SLOT (ShowMap ()));
+  connect (mainUi.hidemapButton, SIGNAL (clicked()),
+           this, SLOT (HideMap ()));
+  connect (mainUi.drawButton, SIGNAL (clicked()),
+           this, SLOT (DrawMap ()));
 
   connect (mainUi.queryCountMax, SIGNAL (valueChanged (int)),
            this, SLOT (ChangeMaxCount (int)));
@@ -150,6 +157,8 @@ AsRoute::Connect ()
            this, SLOT (HandleLatLon (int, double, double)));
   connect (&db, SIGNAL (HaveTagList (int, const TagList &)),
            this, SLOT (HandleTagList (int, const TagList &)));
+  connect (&db, SIGNAL (HaveWayList (int, const QStringList &)),
+           this, SLOT (HandleWayList (int, const QStringList &)));
 }
 
 void
@@ -176,6 +185,32 @@ AsRoute::Clear ()
   nodeSet.clear ();
   requestInDB.clear ();
   requestToSend.clear ();
+}
+
+void
+AsRoute::ShowMap ()
+{
+  mapWidget->show ();
+}
+
+void
+AsRoute::HideMap ()
+{
+  mapWidget->hide ();
+}
+
+void
+AsRoute::DrawMap ()
+{
+  mapWidget->ClearPoints ();
+  QMap <QString, QVector2D>::iterator mit;
+  int np(0);
+  for (mit=nodeCoords.begin(); mit!=nodeCoords.end(); mit++) {
+    mapWidget->AddPoint (mit->toPointF());
+    np++;
+  }
+qDebug () << " DrawMap added " << np << " points";
+  mapWidget->repaint ();
 }
 
 void
@@ -287,6 +322,10 @@ AsRoute::HandleLatLon (int reqId, double lat, double lon)
     if (item) {
       item->setText (1,QString::number (lat));
       item->setText (2,QString::number (lon));
+      item->setData (0,int(Data_Lat), QVariant(lat));
+      item->setData (0,int(Data_Lon), QVariant(lon));
+      nodeCoords [item->data (0, Data_NodeId).toString()] 
+           = QVector2D (lon, -lat);
     }
   }
   UpdateLoad ();
@@ -319,6 +358,25 @@ qDebug () << " no item for reqst " << reqId;
 }
 
 void
+AsRoute::HandleWayList (int reqId, const QStringList & wayList)
+{
+  if (!requestInDB.contains (reqId)) {
+qDebug () << " unkown request " << reqId;
+    return;
+  }
+  requestInDB.remove (reqId);
+  QStringList::const_iterator sit;
+  for (sit = wayList.begin(); sit != wayList.end(); sit++) {
+    waySet.insert (*sit);
+    QTreeWidgetItem * wayItem = new QTreeWidgetItem;
+    wayItem->setText (0,QString ("way %1").arg (*sit));
+    mainUi.featureDisplay->addTopLevelItem (wayItem);
+    // FindWayDetails (wayItem, *sit);
+  }
+  UpdateLoad ();
+}
+
+void
 AsRoute::ListNodes ()
 {
 qDebug () << "ListNodes in thread " << QThread::currentThread();
@@ -332,6 +390,7 @@ qDebug () << "ListNodes in thread " << QThread::currentThread();
   for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
     QTreeWidgetItem *nodeItem = new QTreeWidgetItem (Cell_Node);
     nodeItem->setText (0,QString("node %1").arg(*nit));
+    nodeItem->setData (0, Data_NodeId, *nit);
     QueueAskNodeDetails (nodeItem, *nit);
     nodeList.append (nodeItem);
   }
@@ -410,9 +469,23 @@ AsRoute::AskNodeTagList (QTreeWidgetItem *item, const QString & nodeId)
 }
 
 void
+AsRoute::FindWays ()
+{
+  QSet<QString>::iterator  nit;
+  for (nit = nodeSet.begin(); nit!=nodeSet.end(); nit++) {
+    ResponseStruct resp;
+    resp.type = Req_WayList;
+    int reqId = db.AskWaysByNode (*nit);
+    requestInDB[reqId] = resp;
+qDebug () << " find way for node " << *nit;
+  }
+  KickRequestQueue ();
+}
+
+void
 AsRoute::UpdateLoad ()
 {
-  int numQueries = SqlRunQuery::LiveDynamic();
+  int numQueries = db.PendingRequestCount ();
   int max = mainUi.queryCount->maximum();
   if (max < numQueries) {
     max = numQueries * 2;

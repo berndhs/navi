@@ -44,6 +44,7 @@ AsDbManager::AsDbManager (QObject *parent)
    geoBase (0),
    nextRequest (111)
 {
+qDebug () << "AsDbManager in thread " << QThread::currentThread();
   runner = new SqlRunner;
   Connect ();
 }
@@ -100,11 +101,14 @@ void
 AsDbManager::Connect ()
 {
   connect (runner, SIGNAL (Opened (SqlRunDatabase* , bool)),
-           this, SLOT (CatchOpen (SqlRunDatabase* , bool)));
+           this, SLOT (CatchOpen (SqlRunDatabase* , bool)),
+           Qt::QueuedConnection);
   connect (runner, SIGNAL (Closed (SqlRunDatabase* )),
-           this, SLOT (CatchClose (SqlRunDatabase* )));
+           this, SLOT (CatchClose (SqlRunDatabase* )),
+           Qt::QueuedConnection);
   connect (runner, SIGNAL (Finished  (SqlRunQuery*, bool)),
-           this, SLOT (CatchFinished (SqlRunQuery*, bool)));
+           this, SLOT (CatchFinished (SqlRunQuery*, bool)),
+           Qt::QueuedConnection);
 }
 
 void
@@ -174,6 +178,7 @@ void
 AsDbManager::CatchFinished (SqlRunQuery *query, bool ok)
 {
 qDebug () << " Catch Finished " << ok << query->executedQuery();
+qDebug () << " Catch Finished in thread " << QThread::currentThread();
   if (!queryMap.contains(query)) {
 qDebug () << " Finishe unknown query " << query;
     return;  // ignore bad results
@@ -195,8 +200,11 @@ qDebug () << " Finishe type " << type;
   case Query_AskTagList:
      ReturnTagList (query, ok);
      break;
+  case Query_AskWayList:
+     ReturnWayList (query, ok);
+     break;
   default:
-     qDebug () << " Not Handling Query " << type;
+     qDebug () << " Finishe Not Handling Query " << type;
      break;
   }
   query->deleteLater();
@@ -318,6 +326,25 @@ AsDbManager::AskNodeTagList (const QString & nodeid)
   return reqId;
 }
 
+int
+AsDbManager::AskWaysByNode (const QString & nodeId)
+{
+  SqlRunQuery * query = runner->newQuery (geoBase);
+  if (!query) {
+    qDebug () << "Query allocation failure";
+    return -1;
+  }
+  QString cmd ("select wayid from waynodes where nodeid = \"%1\"");
+  QueryState qstate;
+  qstate.type = Query_AskWayList;
+  int reqId = nextRequest++;
+  qstate.reqId = reqId;
+  qstate.db = geoBase;
+  queryMap[query] = qstate;
+  query->exec (cmd.arg (nodeId));
+  return reqId;
+}
+
 void
 AsDbManager::ReturnRangeNodes (SqlRunQuery * query, bool ok)
 {
@@ -361,6 +388,19 @@ AsDbManager::ReturnTagList (SqlRunQuery * query, bool ok)
   int reqId = queryMap[query].reqId;
 qDebug () << " return tag list for req " << reqId;
   emit HaveTagList (reqId, tagList);
+}
+
+void
+AsDbManager::ReturnWayList (SqlRunQuery * query, bool ok)
+{
+  QStringList wayList;
+  if (ok && query) {
+    while (query->next ()) {
+      wayList.append (query->value(0).toString());
+    }
+  }
+  int reqId = queryMap[query].reqId;
+  emit HaveWayList (reqId, wayList);
 }
 
 void

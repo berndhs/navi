@@ -72,6 +72,7 @@ public:
                   quint64 parcelIndex); 
   int AskRangeNodes (double south, double west, 
                       double north, double east);
+  int AskWaysByNode (const QString & nodeId);
   int AskLatLon (const QString & nodeId);
   int AskNodeTagList (const QString & nodeId);
 
@@ -86,6 +87,7 @@ signals:
   void HaveRangeNodes (int requestId, const QStringList & nodeList);
   void HaveLatLon (int requestId, double lat, double lon);
   void HaveTagList (int requestId, const TagList & tagList);
+  void HaveWayList (int requestId, const QStringList & wayList);
 
 
 private:
@@ -108,6 +110,7 @@ private:
   void ReturnRangeNodes (SqlRunQuery *query, bool ok);
   void ReturnLatLon (SqlRunQuery *query, bool ok);
   void ReturnTagList (SqlRunQuery *query, bool ok);
+  void ReturnWayList (SqlRunQuery *query, bool ok);
   void MakeElement (SqlRunDatabase * db, const QString & elementName);
 
   struct DbState {
@@ -122,7 +125,8 @@ private:
     Query_AskElement,
     Query_AskRangeNodes,
     Query_AskLatLon,
-    Query_AskTagList
+    Query_AskTagList,
+    Query_AskWayList
   };
 
   struct QueryState {

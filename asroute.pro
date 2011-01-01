@@ -70,7 +70,8 @@ FORMS = \
         ui/$${MYNAME}.ui \
         ui/DebugLog.ui \
         ui/config-edit.ui \
-        ui/helpwin.ui \
+        ui/helpwin.ui \  
+        ui/map-display.ui
         
 
 HEADERS = \
@@ -85,6 +86,7 @@ HEADERS = \
           src/as-db-manager.h \
           src/navi-global.h \
           src/route-cell-menus.h \
+          src/map-display.h \
 
 
 SOURCES = \
@@ -99,4 +101,5 @@ SOURCES = \
           src/as-db-manager.cpp \
           src/navi-global.cpp \
           src/route-cell-menus.cpp \
+          src/map-display.cpp 
 

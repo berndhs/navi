@@ -213,9 +213,9 @@ Bounds</string>
      </layout>
     </item>
     <item row="2" column="0" colspan="2">
-     <layout class="QGridLayout" name="gridLayout_2">
-      <item row="0" column="0" rowspan="2">
-       <widget class="QPushButton" name="parcelButton">
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QPushButton" name="waysButton">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -224,24 +224,31 @@ Bounds</string>
         </property>
         <property name="text">
          <string>Find
-Parcel</string>
+Ways</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1" colspan="2">
-       <widget class="QLineEdit" name="parcelEdit"/>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLabel" name="label_2">
+      <item>
+       <widget class="QPushButton" name="hidemapButton">
         <property name="text">
-         <string>Extended:</string>
+         <string>Hide
+Map</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="2">
-       <widget class="QSpinBox" name="extendedSize">
-        <property name="maximum">
-         <number>10</number>
+      <item>
+       <widget class="QPushButton" name="drawButton">
+        <property name="text">
+         <string>Redraw
+</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="showmapButton">
+        <property name="text">
+         <string>Show
+Map</string>
         </property>
        </widget>
       </item>

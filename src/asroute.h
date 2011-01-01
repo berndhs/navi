@@ -2,6 +2,7 @@
 #define ASROUTE_H
 
 #include "ui_asroute.h"
+#include "map-display.h"
 #include "config-edit.h"
 #include "helpview.h"
 #include "as-db-manager.h"
@@ -9,6 +10,9 @@
 #include "route-cell-menus.h"
 #include <QMainWindow>
 #include <QStringList>
+#include <QVector2D>
+#include <QPoint>
+#include <QMap>
 
 class QApplication;
 
@@ -36,6 +40,10 @@ private slots:
   void License ();
   void Exiting ();
 
+  void ShowMap ();
+  void HideMap ();
+  void DrawMap ();
+
   void Clear ();
   void SendSomeRequests ();
   void KickRequestQueue ();
@@ -45,7 +53,10 @@ private slots:
   void HandleRangeNodes (int reqId, const QStringList & nodes);
   void HandleLatLon (int reqId, double lat, double lon);
   void HandleTagList (int reqId, const TagList & tagList);
+  void HandleWayList (int reqId, const QStringList & wayList);
   void ChangeMaxCount (int newmax);
+  void FindWays ();
+
 
 private:
 
@@ -54,7 +65,6 @@ private:
   void AskLatLon (QTreeWidgetItem * item, const QString & nodeId);
   void AskNodeTagList (QTreeWidgetItem * item, const QString & nodeId);
   void UpdateLoad ();
-
   enum CellType {
        Cell_NoType = 0,
        Cell_Node = 1,
@@ -66,10 +76,18 @@ private:
        Cell_Bad
   };
 
+  enum CellDataType {
+       Data_NodeId = Qt::UserRole+1,
+       Data_WayId,
+       Data_Lat,
+       Data_Lon
+  };
+
   enum RequestType {
        Req_None = 0,
        Req_LatLon,
        Req_NodeTagList,
+       Req_WayList,
        Req_Tag,
        Req_Bad
   };
@@ -93,6 +111,8 @@ private:
 
   QApplication    *app;
   Ui_AsRouteMain   mainUi;
+
+  MapDisplay      *mapWidget;
   AsDbManager      db;
   QStringList      configMessages;
   ConfigEdit       configEdit;
@@ -101,6 +121,7 @@ private:
   QMap <CellType, QString > cellTypeName;
 
   QSet <QString>  nodeSet;
+  QSet <QString>  waySet;
   
   QMap <int, ResponseStruct>  requestInDB;
   QList <RequestStruct>       requestToSend;
@@ -108,6 +129,7 @@ private:
   int    numNodeDetails;
   int    numNodes;
 
+  QMap <QString, QVector2D>   nodeCoords;
 
 } ;
 
