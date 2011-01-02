@@ -147,8 +147,6 @@ MoveButton::mouseMoveEvent (QMouseEvent * event)
 {
   static int count (0);
   if (trackingMouse) {
-    qDebug () << objectName () << " following mouse " << event
-            <<  count++;
     parentWidget->update ();
   }
 }

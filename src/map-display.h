@@ -29,6 +29,7 @@
 #include <QPointF>
 #include <QList>
 #include <QTime>
+#include <QTimer>
 
 #include <QVector2D>
 
@@ -56,6 +57,7 @@ private slots:
   void FullButton ();
   void ZoomButton ();
   void MouseTrack (bool doTrack);
+  void TimedMove ();
 
 protected:
 
@@ -87,9 +89,13 @@ private:
   double           xScale;
   double           yScale;
 
+  double           zoomScale;
+
   bool       fullView;
   bool       zoomView;
   bool       followMouse;
+
+  QTimer    *moveTimer;
 
 };
 

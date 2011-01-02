@@ -48,10 +48,12 @@ MapDisplay::MapDisplay (QWidget *parent)
    yHi (-90.0),
    fullView (true),
    zoomView (false),
-   followMouse (false)
+   followMouse (false),
+   zoomScale (1.0)
 {
   ui.setupUi (this);
   clock.start ();
+  moveTimer = new QTimer (this);
   QString buttonStyle (
                    " QPushButton { "
                       " border: 2px solid #8f8f91; "
@@ -68,6 +70,7 @@ MapDisplay::MapDisplay (QWidget *parent)
   connect (ui.fullButton, SIGNAL (clicked()), this, SLOT (FullButton()));
   connect (ui.zoomButton, SIGNAL (clicked()), this, SLOT (ZoomButton()));
   connect (ui.moveButton, SIGNAL (Track(bool)), this, SLOT (MouseTrack (bool)));
+  connect (moveTimer, SIGNAL (timeout()), this, SLOT (TimedMove ()));
 }
 
 void
@@ -104,6 +107,7 @@ MapDisplay::FullButton ()
 {
   fullView = true;
   zoomView = false;
+  zoomScale = 1.0;
   update ();
 }
 
@@ -120,16 +124,22 @@ MapDisplay::MouseTrack (bool doTrack)
 {
   followMouse = doTrack;
   setMouseTracking (doTrack);
-  qDebug () << " moust tracking " << doTrack;
+  qDebug () << " Mouse tracking " << doTrack;
+  if (followMouse) {
+    moveTimer->start (100);
+  } else {
+    moveTimer->stop ();
+  }
 }
 
 void
 MapDisplay::paintEvent (QPaintEvent * event)
 {
   if (fullView) {
+    SetRange ();
     FullPaint ();
   } else if (zoomView) {
-    ZoomPaint ();
+    FullPaint ();
   }
   if (ui.moveButton->Tracking ()) {
     QPainter painter;
@@ -148,7 +158,17 @@ MapDisplay::paintEvent (QPaintEvent * event)
 void
 MapDisplay::wheelEvent (QWheelEvent * event)
 {
-  qDebug () << " wheel event " << event;
+  if (!zoomView) {
+    return;
+  }
+  int  delta = event->delta();
+  if (delta < 0) {
+    zoomScale /= 1.2;
+    update ();
+  } else if (delta > 0) {
+    zoomScale *= 1.2;
+    update ();
+  }
   QWidget::wheelEvent (event);
 }
 
@@ -158,6 +178,7 @@ MapDisplay::mouseMoveEvent (QMouseEvent * event)
   if (followMouse) {
     qDebug () << " following mouse " << event;
   }
+  QWidget::mouseMoveEvent (event);
 }
 
 void
@@ -166,12 +187,12 @@ MapDisplay::resizeEvent (QResizeEvent * event)
   int w = size().width();
   int h = size().height();
   ui.moveButton->CenterOn (QPoint(w/2,h/2));
+  QWidget::resizeEvent (event);
 }
 
 void
 MapDisplay::FullPaint ()
 {
-  SetRange ();
   QPainter painter;
   painter.begin (this);
 
@@ -208,9 +229,23 @@ MapDisplay::PaintPoints (QPainter * painter)
 QPointF
 MapDisplay::Scale (const QPointF p)
 {
-  double x = (p.x() - xLo) * xScale;
-  double y = (p.y() - yLo) * yScale;
+  double x = (p.x() - xLo) * xScale * zoomScale;
+  double y = (p.y() - yLo) * yScale * zoomScale;
   return QPointF (x,y);
+}
+
+void
+MapDisplay::TimedMove ()
+{
+  QVector2D dir = ui.moveButton->Direction();
+  dir *= 5.0/(zoomScale * (xScale + yScale));
+  double dx = dir.x();
+  double dy = dir.y();
+  xLo += dx;
+  xHi += dx;
+  yLo += dy;
+  yHi += dy;
+  update ();
 }
 
 } // namespace
