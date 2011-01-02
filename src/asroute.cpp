@@ -43,6 +43,8 @@ AsRoute::AsRoute (QWidget *parent)
    app (0),
    mapWidget (0),
    db (this),
+   maxSend (1*1024),
+   maxPending (2*1024),
    configEdit (this),
    helpView (0),
    cellMenu (0)
@@ -70,6 +72,10 @@ AsRoute::Init (QApplication & qapp)
 {
   app = &qapp;
   QCoreApplication::setAttribute (Qt::AA_DontShowIconsInMenus, false);
+  maxSend = Settings().value ("dbrun/maxsend",maxSend).toInt();
+  Settings().setValue ("dbrun/maxsend",maxSend);
+  maxPending = Settings().value ("dbrun/maxpending",maxPending).toInt();
+  Settings().setValue ("dbrun/maxpending",maxPending);
   Settings().sync();
   db.Start ();
 }
@@ -316,6 +322,7 @@ qDebug () << " list count " << nodes.count() << " set count " << nodeSet.count()
 void
 AsRoute::HandleLatLon (int reqId, double lat, double lon)
 {
+  int count (0);
   if (requestInDB.contains (reqId)) {
     QTreeWidgetItem *item = requestInDB[reqId].destItem;
     requestInDB.remove (reqId);
@@ -324,9 +331,15 @@ AsRoute::HandleLatLon (int reqId, double lat, double lon)
       item->setText (2,QString::number (lon));
       item->setData (0,int(Data_Lat), QVariant(lat));
       item->setData (0,int(Data_Lon), QVariant(lon));
-      nodeCoords [item->data (0, Data_NodeId).toString()] 
-           = QVector2D (lon, -lat);
-    }
+      QVector2D coord (lon, -lat);
+      nodeCoords [item->data (0, Data_NodeId).toString()] = coord;
+      mapWidget->AddPoint (coord.toPointF());
+      count++;
+      if (count > 100) {
+        mapWidget->update();
+        count = 0;
+      }
+     }
   }
   UpdateLoad ();
 }
@@ -424,12 +437,10 @@ AsRoute::QueueAskNodeDetails (QTreeWidgetItem * item, const QString & id)
 void
 AsRoute::SendSomeRequests ()
 {
-  static const int MaxSend (1*1024);
-  static const int MaxPending (2*1024);
-  int some (MaxSend);
+  int some (maxSend);
   while (some > 0 
          && !requestToSend.isEmpty()
-         && db.PendingRequestCount() < MaxPending) {
+         && db.PendingRequestCount() < maxPending) {
     some--;
     RequestStruct req = requestToSend.takeFirst();
     switch (req.type) {

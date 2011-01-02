@@ -1,10 +1,41 @@
 #include "map-display.h"
 
+
+/****************************************************************
+ * This file is distributed under the following license:
+ *
+ * Copyright (C) 2010, Bernd Stramm
+ *
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, 
+ *  Boston, MA  02110-1301, USA.
+ ****************************************************************/
+
+
+#include "deliberate.h"
+#include "move-button.h"
+
 #include <QPainter>
 #include <QColor>
 #include <QSize>
 
+#include <QWheelEvent>
+#include <QMouseEvent>
+
 #include <QDebug>
+
+using namespace deliberate;
 
 namespace navi
 {
@@ -14,10 +45,29 @@ MapDisplay::MapDisplay (QWidget *parent)
    xLo (180.0),
    yLo (90.0),
    xHi (-180.0),
-   yHi (-90.0)
+   yHi (-90.0),
+   fullView (true),
+   zoomView (false),
+   followMouse (false)
 {
   ui.setupUi (this);
+  clock.start ();
+  QString buttonStyle (
+                   " QPushButton { "
+                      " border: 2px solid #8f8f91; "
+                       "   border-radius: 4px; "
+                        "  background-color: rgba(255, 100, 100, 20); "
+                           "}" );
+  buttonStyle = Settings().value("mapstyle/buttonstyle", buttonStyle).toString();
+  Settings().setValue ("mapstyle/buttonstyle",buttonStyle);
+  ui.closeButton->setStyleSheet (buttonStyle);
+  ui.zoomButton->setStyleSheet (buttonStyle);
+  ui.fullButton->setStyleSheet (buttonStyle);
+  qDebug () << " closeButton style sheet " << ui.closeButton->styleSheet();
   connect (ui.closeButton, SIGNAL (clicked()), this, SLOT (hide()));
+  connect (ui.fullButton, SIGNAL (clicked()), this, SLOT (FullButton()));
+  connect (ui.zoomButton, SIGNAL (clicked()), this, SLOT (ZoomButton()));
+  connect (ui.moveButton, SIGNAL (Track(bool)), this, SLOT (MouseTrack (bool)));
 }
 
 void
@@ -49,35 +99,97 @@ MapDisplay::SetRange ()
   yScale = double (size().height())/ yRange;
 }
 
+void
+MapDisplay::FullButton ()
+{
+  fullView = true;
+  zoomView = false;
+  update ();
+}
+
+void
+MapDisplay::ZoomButton ()
+{
+  fullView = false;
+  zoomView = true;
+  update ();
+}
+
+void
+MapDisplay::MouseTrack (bool doTrack)
+{
+  followMouse = doTrack;
+  setMouseTracking (doTrack);
+  qDebug () << " moust tracking " << doTrack;
+}
 
 void
 MapDisplay::paintEvent (QPaintEvent * event)
 {
-qDebug () << "MapDisplay paint " << event;
-  if (true || isVisible ()) {
-qDebug () << " MapDisplay doing paintEvent";
-    SetRange ();
+  if (fullView) {
+    FullPaint ();
+  } else if (zoomView) {
+    ZoomPaint ();
+  }
+  if (ui.moveButton->Tracking ()) {
     QPainter painter;
     painter.begin (this);
-
-    QSize canvasSize = size();
-    int w = canvasSize.width();
-    int h = canvasSize.height();
-
-    painter.save ();
-    painter.setPen (QColor(0,0,0,255));
-    PaintPoints (&painter);
-    painter.restore ();
- 
-    painter.setPen (QColor(200,0,100,200));
-    painter.translate (w/2,h/2);
-    painter.drawLine (-30,0, 30,0);
-    painter.drawLine (0,-30,0,30);
-    painter.drawRect (-20, -20,40,40);
- 
-    painter.end();
+    painter.setPen (QColor (0,0,0));
+    QPoint mbcent = ui.moveButton->Center();
+    QVector2D dir = ui.moveButton->Direction ();
+    dir *= 60.0;
+    painter.translate (mbcent.x(), mbcent.y());
+    painter.drawLine (QPoint (0,0), dir.toPoint());
+    painter.end ();
   }
   QWidget::paintEvent (event);
+}
+
+void
+MapDisplay::wheelEvent (QWheelEvent * event)
+{
+  qDebug () << " wheel event " << event;
+  QWidget::wheelEvent (event);
+}
+
+void
+MapDisplay::mouseMoveEvent (QMouseEvent * event)
+{
+  if (followMouse) {
+    qDebug () << " following mouse " << event;
+  }
+}
+
+void
+MapDisplay::resizeEvent (QResizeEvent * event)
+{
+  int w = size().width();
+  int h = size().height();
+  ui.moveButton->CenterOn (QPoint(w/2,h/2));
+}
+
+void
+MapDisplay::FullPaint ()
+{
+  SetRange ();
+  QPainter painter;
+  painter.begin (this);
+
+  QSize canvasSize = size();
+  int w = canvasSize.width();
+  int h = canvasSize.height();
+
+  painter.save ();
+  painter.setPen (QColor(0,0,0,255));
+  PaintPoints (&painter);
+  painter.restore ();
+ 
+  painter.end();
+}
+
+void
+MapDisplay::ZoomPaint ()
+{
 }
 
 void

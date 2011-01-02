@@ -114,6 +114,10 @@ private:
 
   MapDisplay      *mapWidget;
   AsDbManager      db;
+
+  int              maxSend;
+  int              maxPending;
+
   QStringList      configMessages;
   ConfigEdit       configEdit;
   deliberate::HelpView        *helpView;

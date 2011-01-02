@@ -33,7 +33,12 @@ CONFIG += debug_and_release
 MAKEFILE = Make_$${MYNAME}
 !include ("options.pri") {
   message ("no options.pri, using defaults")
+  EXTRA_INCLUDE += -I/home/bernd/local/include
+  SQLRUN_LIBDIR = /home/bernd/local/lib64
 }
+
+INCLUDEPATH += $$EXTRA_INCLUDE
+LIBS += -L$SQLRUN_LIBDIR -lsqlrunner
 
 CONFIG(debug, debug|release) {
   DEFINES += DELIBERATE_DEBUG=1

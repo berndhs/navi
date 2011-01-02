@@ -1,5 +1,6 @@
-#ifndef NAVI_MAP_DISPLAY_H
-#define NAVI_MAP_DISPLAY_H
+#ifndef NAVI_MOVE_BUTTON_H
+#define NAVI_MOVE_BUTTON_H
+
 
 
 /****************************************************************
@@ -24,76 +25,60 @@
  ****************************************************************/
 
 
-#include "ui_map-display.h"
 
-#include <QPointF>
-#include <QList>
-#include <QTime>
+#include <QPushButton>
+#include <QPoint>
+#include <QEvent>
+#include <QPaintEvent>
+#include <QMouseEvent>
 
 #include <QVector2D>
 
-class QPainter;
-
-class QPaintEvent;
-class QWheelEvent;
-class QMouseMoveEvent;
-
 namespace navi
 {
-class MapDisplay : public QWidget
+class MoveButton : public QPushButton
 {
 Q_OBJECT
 
 public:
 
-  MapDisplay (QWidget * parent=0);
+  MoveButton ( QWidget * parent = 0 );
+  MoveButton ( const QString & text, QWidget * parent = 0 );
+  MoveButton ( const QIcon & icon, const QString & text, QWidget * parent = 0 );
 
-  void AddPoint (const QPointF & p);
-  void ClearPoints ();
+  bool Tracking ();
 
-private slots:
+  void CenterOn (QPoint center);
+  void CenterOn (int x, int y);
+  QPoint Center ();
+  QVector2D Direction ();
 
-  void FullButton ();
-  void ZoomButton ();
-  void MouseTrack (bool doTrack);
+public slots:
+
+  void Pressed ();
+  void Released ();
 
 protected:
 
+  void leaveEvent (QEvent * event);
+  void enterEvent (QEvent * event);
   void paintEvent (QPaintEvent * event);
-  void wheelEvent (QWheelEvent * event);
   void mouseMoveEvent (QMouseEvent * event);
-  void resizeEvent (QResizeEvent *event);
+
+signals:
+
+  void Track (bool track);
 
 private:
 
-  void PaintPoints (QPainter * painter);
-  QPointF Scale (const QPointF p);
-  void    SetRange ();
+  void Init ();
+  void ChangeTracking (bool doTrack);
 
-  void FullPaint ();
-  void ZoomPaint ();
-
-  Ui_MapDisplay   ui;
-  QTime           clock;
-
-  QList <QPointF>  points;
-  double           xLo;
-  double           yLo;
-  double           xHi;
-  double           yHi;
-
-  double           xRange;
-  double           yRange;
-  double           xScale;
-  double           yScale;
-
-  bool       fullView;
-  bool       zoomView;
-  bool       followMouse;
+  QWidget *parentWidget;
+  bool trackingMouse;
 
 };
 
 } // namespace
-
 
 #endif

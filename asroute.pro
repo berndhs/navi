@@ -59,6 +59,8 @@ CONFIG(debug, debug|release) {
   message ("RELEASE c-flags used $${QMAKE_CFLAGS_RELEASE}")
 }
 
+INCLUDEPATH += .
+INCLUDEPATH += src/
 
 
 UI_DIR = tmp/ui
@@ -87,6 +89,7 @@ HEADERS = \
           src/navi-global.h \
           src/route-cell-menus.h \
           src/map-display.h \
+          src/move-button.h \
 
 
 SOURCES = \
@@ -101,5 +104,6 @@ SOURCES = \
           src/as-db-manager.cpp \
           src/navi-global.cpp \
           src/route-cell-menus.cpp \
-          src/map-display.cpp 
+          src/map-display.cpp \
+          src/move-button.cpp \
 
