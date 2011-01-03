@@ -180,7 +180,7 @@ MoveButton::Direction ()
   QVector2D cur = QVector2D (parentWidget->mapFromGlobal (QCursor::pos()));
   QVector2D home = QVector2D (Center());
   QVector2D dir = cur - home;
-  return dir.normalized();
+  return dir;
 }
 
 } // namespace

@@ -146,7 +146,7 @@ MapDisplay::paintEvent (QPaintEvent * event)
     painter.begin (this);
     painter.setPen (QColor (0,0,0));
     QPoint mbcent = ui.moveButton->Center();
-    QVector2D dir = ui.moveButton->Direction ();
+    QVector2D dir = ui.moveButton->Direction ().normalized();
     dir *= 60.0;
     painter.translate (mbcent.x(), mbcent.y());
     painter.drawLine (QPoint (0,0), dir.toPoint());
@@ -238,7 +238,10 @@ void
 MapDisplay::TimedMove ()
 {
   QVector2D dir = ui.moveButton->Direction();
-  dir *= 5.0/(zoomScale * (xScale + yScale));
+  double len = dir.length();
+  dir.normalize();
+  double moveLen (len > 70.0 ? 10.0 : 5.0);
+  dir *= moveLen/(zoomScale * (xScale + yScale));
   double dx = dir.x();
   double dy = dir.y();
   xLo += dx;
