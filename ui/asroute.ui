@@ -24,32 +24,6 @@
       <property name="orientation">
        <enum>Qt::Vertical</enum>
       </property>
-      <widget class="QTreeWidget" name="featureDisplay">
-       <property name="columnCount">
-        <number>3</number>
-       </property>
-       <attribute name="headerDefaultSectionSize">
-        <number>150</number>
-       </attribute>
-       <attribute name="headerMinimumSectionSize">
-        <number>100</number>
-       </attribute>
-       <column>
-        <property name="text">
-         <string/>
-        </property>
-       </column>
-       <column>
-        <property name="text">
-         <string/>
-        </property>
-       </column>
-       <column>
-        <property name="text">
-         <string notr="true"/>
-        </property>
-       </column>
-      </widget>
       <widget class="QTextBrowser" name="logDisplay"/>
      </widget>
     </item>

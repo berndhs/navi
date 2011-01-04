@@ -50,21 +50,24 @@ private slots:
   void LatLonButton ();
   void ParcelButton ();
   void FeatureButton ();
-  void HandleRangeNodes (int reqId, const QStringList & nodes);
+  void HandleRangeNodes (int reqId, const NaviNodeList & nodes);
   void HandleLatLon (int reqId, double lat, double lon);
   void HandleTagList (int reqId, const TagList & tagList);
   void HandleWayList (int reqId, const QStringList & wayList);
+  void HandleRangeNodeTags (int reqId, const TagRecordList & tagList);
   void ChangeMaxCount (int newmax);
   void FindWays ();
+  void CatchMark (int markId);
 
 
 private:
 
-  void QueueAskNodeDetails (QTreeWidgetItem * item, 
-                            const QString & nodeId);
-  void AskLatLon (QTreeWidgetItem * item, const QString & nodeId);
-  void AskNodeTagList (QTreeWidgetItem * item, const QString & nodeId);
+  void QueueAskNodeDetails (const QString & nodeId);
+  void AskLatLon (const QString & nodeId);
+  void AskNodeTagList (const QString & nodeId);
   void UpdateLoad ();
+  void Mark (const QString & message = QString ("Mark"));
+  void QueueMark (const QString & message = QString ("Queued Mark"));
   enum CellType {
        Cell_NoType = 0,
        Cell_Node = 1,
@@ -89,20 +92,25 @@ private:
        Req_NodeTagList,
        Req_WayList,
        Req_Tag,
+       Req_Mark,
        Req_Bad
   };
 
   struct ResponseStruct {
     RequestType          type;
-    QTreeWidgetItem  *destItem;
+    QString           id;
   };
 
   struct RequestStruct {
     RequestType       type;
     QString           id;
-    QTreeWidgetItem  *destItem;
   };
    
+  struct MarkStruct {
+    int      markId;
+    int      elapsedStart;
+    QString  markText;
+  };
 
   void Connect ();
   void CloseCleanup ();
@@ -126,12 +134,17 @@ private:
 
   QSet <QString>  nodeSet;
   QSet <QString>  waySet;
+  QMap <QString, TagItemType>  tagMap;
   
   QMap <int, ResponseStruct>  requestInDB;
   QList <RequestStruct>       requestToSend;
 
   int    numNodeDetails;
   int    numNodes;
+
+  int    numQueries;
+  QTime  markClock;
+  QMap <int, MarkStruct>  markMap;
 
   QMap <QString, QVector2D>   nodeCoords;
 

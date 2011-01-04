@@ -1,5 +1,5 @@
 CREATE TABLE "wayparcels" (
-  "wayid" TEXT NOT NULL,
+  "wayid" INTEGER NOT NULL,
   "parcelid" INTEGER NOT NULL,
    UNIQUE ("wayid") ON CONFLICT IGNORE
 );

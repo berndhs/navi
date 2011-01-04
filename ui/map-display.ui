@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MapDisplay</class>
+ <widget class="QWidget" name="MapDisplay">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Map</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../navi.qrc">
+    <normaloff>:/navi.png</normaloff>:/navi.png</iconset>
+  </property>
+  <widget class="QWidget" name="layoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>61</width>
+     <height>95</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QPushButton" name="closeButton">
+      <property name="text">
+       <string>Close</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="zoomButton">
+      <property name="text">
+       <string>Zoom</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="fullButton">
+      <property name="text">
+       <string>Full</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="navi::MoveButton" name="moveButton">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>140</y>
+     <width>100</width>
+     <height>100</height>
+    </rect>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>navi::MoveButton</class>
+   <extends>QPushButton</extends>
+   <header location="global">move-button.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../navi.qrc"/>
+ </resources>
+ <connections/>
+</ui>

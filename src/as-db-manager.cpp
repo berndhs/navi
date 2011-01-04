@@ -109,6 +109,9 @@ AsDbManager::Connect ()
   connect (runner, SIGNAL (Finished  (SqlRunQuery*, bool)),
            this, SLOT (CatchFinished (SqlRunQuery*, bool)),
            Qt::QueuedConnection);
+  connect (runner, SIGNAL (MarkReached (int, bool)),
+           this, SLOT (CatchMark (int, bool)),
+           Qt::QueuedConnection);
 }
 
 void
@@ -175,6 +178,13 @@ AsDbManager::CatchClose (SqlRunDatabase *db)
 }
 
 void
+AsDbManager::CatchMark (int markId, bool ok)
+{
+  emit MarkReached (markId);
+}
+
+
+void
 AsDbManager::CatchFinished (SqlRunQuery *query, bool ok)
 {
 qDebug () << " Catch Finished " << ok << query->executedQuery();
@@ -202,6 +212,9 @@ qDebug () << " Finishe type " << type;
      break;
   case Query_AskWayList:
      ReturnWayList (query, ok);
+     break;
+  case Query_RangeNodeTags:
+     ReturnRangeNodeTags (query, ok);
      break;
   default:
      qDebug () << " Finishe Not Handling Query " << type;
@@ -274,7 +287,7 @@ AsDbManager::AskRangeNodes (double south, double west,
                             double north, double east)
 {
   SqlRunQuery *query = runner->newQuery(geoBase);
-  QString cmd ("select nodeid from nodes where "
+  QString cmd ("select nodeid, lat, lon from nodes where "
                " lat >= %1 AND lat <= %2 "
                " AND "
                " lon >= %3 AND lon <= %4 ");
@@ -345,13 +358,62 @@ AsDbManager::AskWaysByNode (const QString & nodeId)
   return reqId;
 }
 
+int
+AsDbManager::AskRangeNodeTags (double south, double west, 
+                      double north, double east)
+{
+  static int tempnum (1);
+  QString createTmp1 ("create temporary table %5 as "
+               " select nodeid from nodes where "
+               " lat >= %1 AND lat <= %2 "
+               " AND "
+               " lon >= %3 AND lon <= %4 ");
+  QString tmpname1 (QString ("tempRNT%1").arg(tempnum++));
+  SqlRunQuery * tmpCreate1 = runner->newQuery (geoBase);
+  QueryState qstate1 (nextRequest++, Query_IgnoreResult, geoBase);
+
+  QString createTmp2 ("create temporary table %1 as "
+                  " select nodetags.nodeid, key, value from nodetags "
+                  " inner join %2 on "
+                  " nodetags.nodeid = %2.nodeid ");
+  QString tmpname2 (QString ("tempRNT%1").arg(tempnum++));
+  SqlRunQuery * tmpCreate2 = runner->newQuery (geoBase);
+  QueryState qstate2 (nextRequest++, Query_IgnoreResult, geoBase);
+
+  QString selectCmd ("select nodeid, key, value from %1");
+  SqlRunQuery * select = runner->newQuery (geoBase);
+  QueryState qstate3 (nextRequest++, Query_RangeNodeTags, geoBase);
+  int reqId = qstate3.reqId;
+
+  QString dropCmd ("drop table %1");
+  SqlRunQuery * drop1 = runner->newQuery (geoBase);
+  QueryState qstate4 (nextRequest++, Query_IgnoreResult, geoBase);
+  SqlRunQuery * drop2 = runner->newQuery (geoBase);
+  QueryState qstate5 (nextRequest++, Query_IgnoreResult, geoBase);
+  queryMap[tmpCreate1] = qstate1;
+  queryMap[tmpCreate2] = qstate2;
+  queryMap[select] = qstate3;
+  queryMap[drop1] = qstate4;
+  queryMap[drop2] = qstate5;
+  tmpCreate1->exec (createTmp1.arg (south).arg(north).arg(west).arg(east)
+                             .arg (tmpname1));
+  tmpCreate2->exec (createTmp2.arg (tmpname2).arg (tmpname1));
+  select->exec (selectCmd.arg (tmpname2));
+  drop1->exec (dropCmd.arg (tmpname1));
+  drop2->exec (dropCmd.arg (tmpname2));
+  return reqId;
+}
+
 void
 AsDbManager::ReturnRangeNodes (SqlRunQuery * query, bool ok)
 {
-  QStringList nodeList;
+  NaviNodeList nodeList;
   if (ok && query) {
     while (query->next()) {
-      nodeList.append (query->value(0).toString());
+      QString id = query->value(0).toString();
+      double lat = query->value(1).toDouble();
+      double lon = query->value(2).toDouble();
+      nodeList.append (NaviNode (id, lat, lon));
     }
   }
   int reqId = queryMap[query].reqId;
@@ -401,6 +463,20 @@ AsDbManager::ReturnWayList (SqlRunQuery * query, bool ok)
   }
   int reqId = queryMap[query].reqId;
   emit HaveWayList (reqId, wayList);
+}
+
+void
+AsDbManager::ReturnRangeNodeTags (SqlRunQuery * query, bool ok)
+{
+  TagRecordList list;
+  if (ok && query) {
+    while (query->next ()) {
+      list.append (TagRecord (query->value(0).toString(),
+                              query->value(1).toString(),
+                              query->value(2).toString()));
+    }
+  }
+  emit HaveRangeNodeTags (queryMap[query].reqId, list);
 }
 
 void
@@ -536,6 +612,13 @@ AsDbManager::CommitTransaction ()
   if (geoBase) {
     geoBase->commit ();
   }
+}
+
+int
+AsDbManager::SetMark ()
+{
+  int mark = runner->Mark ();
+  return mark;
 }
 
 } // namespace

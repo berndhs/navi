@@ -27,8 +27,6 @@
 namespace navi
 {
 
-typedef QPair <QString, QString>  TagItemType;
-typedef QList <TagItemType>       TagList;
 
 class NaviNode 
 {
@@ -54,9 +52,9 @@ public:
        return *this;
     }
 
-  QString Id () { return id; }
-  double  Lat () { return lat; }
-  double  Lon () { return lon; }
+  QString Id () const { return id; }
+  double  Lat () const { return lat; }
+  double  Lon () const { return lon; }
 
   void SetLat (double l) { lat = l; }
   void SetLon (double l) { lon = l; }
@@ -68,6 +66,37 @@ private:
   double  lon;
 
 };
+
+class TagRecord {
+public:
+
+  TagRecord () {}
+  TagRecord (const QString & theId, 
+             const QString & theKey, 
+             const QString & theVal)
+    :id (theId), key (theKey), value (theVal) {}
+  TagRecord (const TagRecord & other)
+    {
+      id = other.id;
+      key = other.key;
+      value = other.value;
+    }
+
+  QString Id () const { return id; }
+  QString Key () const { return key; }
+  QString Value () const { return value; }
+
+private:
+
+  QString id;
+  QString key;
+  QString value;
+};
+
+typedef QPair <QString, QString>  TagItemType;
+typedef QList <TagItemType>       TagList;
+typedef QList <NaviNode>          NaviNodeList;
+typedef QList <TagRecord>         TagRecordList;
 
 } // namespace
 

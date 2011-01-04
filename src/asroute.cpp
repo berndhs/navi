@@ -64,6 +64,7 @@ AsRoute::AsRoute (QWidget *parent)
   mapWidget = new MapDisplay (0);
   mapWidget->resize (300,250);
   mapWidget->hide ();
+  markClock.start ();
   Connect ();
 }
 
@@ -144,8 +145,6 @@ AsRoute::Connect ()
            this, SLOT (FindWays ()));
   connect (mainUi.featureButton, SIGNAL (clicked()),
            this, SLOT (FeatureButton ()));
-  connect (mainUi.featureDisplay, SIGNAL (itemDoubleClicked (QTreeWidgetItem*,int)),
-           this, SLOT (Picked (QTreeWidgetItem*, int)));
 
   connect (mainUi.showmapButton, SIGNAL (clicked()),
            this, SLOT (ShowMap ()));
@@ -157,14 +156,18 @@ AsRoute::Connect ()
   connect (mainUi.queryCountMax, SIGNAL (valueChanged (int)),
            this, SLOT (ChangeMaxCount (int)));
 
-  connect (&db, SIGNAL (HaveRangeNodes (int, const QStringList &)),
-           this, SLOT (HandleRangeNodes (int, const QStringList &)));
+  connect (&db, SIGNAL (HaveRangeNodes (int, const NaviNodeList &)),
+           this, SLOT (HandleRangeNodes (int, const NaviNodeList &)));
   connect (&db, SIGNAL (HaveLatLon (int, double, double)),
            this, SLOT (HandleLatLon (int, double, double)));
   connect (&db, SIGNAL (HaveTagList (int, const TagList &)),
            this, SLOT (HandleTagList (int, const TagList &)));
   connect (&db, SIGNAL (HaveWayList (int, const QStringList &)),
            this, SLOT (HandleWayList (int, const QStringList &)));
+  connect (&db, SIGNAL (HaveRangeNodeTags (int, const TagRecordList &)),
+           this, SLOT (HandleRangeNodeTags (int, const TagRecordList &)));
+  connect (&db, SIGNAL (MarkReached (int)),
+           this, SLOT (CatchMark (int)));
 }
 
 void
@@ -186,7 +189,6 @@ AsRoute::Quit ()
 void
 AsRoute::Clear ()
 {
-  mainUi.featureDisplay->clear();
   mainUi.logDisplay->clear();
   nodeSet.clear ();
   requestInDB.clear ();
@@ -215,7 +217,6 @@ AsRoute::DrawMap ()
     mapWidget->AddPoint (mit->toPointF());
     np++;
   }
-qDebug () << " DrawMap added " << np << " points";
   mapWidget->repaint ();
 }
 
@@ -294,7 +295,11 @@ qDebug () << "LatLonBUtton in thread " << QThread::currentThread();
   Settings().sync();
   nodeSet.clear ();
   numNodeDetails = 0;
+  QueueMark ("Start Asking RangeNodes");
   db.AskRangeNodes (south,west, north,east);
+  QueueMark ("Done Asking RangeNodes");
+  db.AskRangeNodeTags (south,west,north,east);
+  QueueMark ("Done Asking Tags for Range ");
   UpdateLoad ();
 }
 
@@ -306,40 +311,53 @@ AsRoute::ParcelButton ()
 }
 
 void
-AsRoute::HandleRangeNodes (int reqId, const QStringList & nodes)
+AsRoute::HandleRangeNodes (int reqId, const NaviNodeList & nodes)
 {
-  for (int n=0;n<nodes.count();n++) {
-    nodeSet.insert (nodes.at(n));
-  }
   requestInDB.remove (reqId);
-qDebug () << " list count " << nodes.count() << " set count " << nodeSet.count();
   numNodes = nodes.count();
   mainUi.loadBar->setMaximum (numNodes);
+  for (int n=0; n<numNodes; n++) {
+    QString id = nodes.at(n).Id();
+    double  lat = nodes.at(n).Lat();
+    double  lon = nodes.at(n).Lon();
+    nodeCoords [id] = QVector2D (lon, -lat);
+    nodeSet.insert (id);
+  }
+qDebug () << " list count " << nodes.count() << " set count " << nodeSet.count();
+ 
+  update ();
   ListNodes();
   UpdateLoad ();
 }
+
+void
+AsRoute::HandleRangeNodeTags (int reqId, const TagRecordList & tagList)
+{
+  requestInDB.remove (reqId);
+  int nt = tagList.count();
+  for (int t=0; t<nt; t++) {
+    TagRecord rec = tagList.at(t);
+    tagMap[rec.Id()] = TagItemType (rec.Key(), rec.Value());
+  } 
+  mainUi.logDisplay->append (QString (" processed %1 tags").arg(nt));
+}
+
 
 void
 AsRoute::HandleLatLon (int reqId, double lat, double lon)
 {
   int count (0);
   if (requestInDB.contains (reqId)) {
-    QTreeWidgetItem *item = requestInDB[reqId].destItem;
+    QString nodeId = requestInDB[reqId].id;
     requestInDB.remove (reqId);
-    if (item) {
-      item->setText (1,QString::number (lat));
-      item->setText (2,QString::number (lon));
-      item->setData (0,int(Data_Lat), QVariant(lat));
-      item->setData (0,int(Data_Lon), QVariant(lon));
-      QVector2D coord (lon, -lat);
-      nodeCoords [item->data (0, Data_NodeId).toString()] = coord;
-      mapWidget->AddPoint (coord.toPointF());
-      count++;
-      if (count > 100) {
-        mapWidget->update();
-        count = 0;
-      }
-     }
+    QVector2D coord (lon, -lat);
+    nodeCoords [nodeId] = coord;
+    mapWidget->AddPoint (coord.toPointF());
+    count++;
+    if (count > 100) {
+      mapWidget->update();
+      count = 0;
+    }
   }
   UpdateLoad ();
 }
@@ -348,25 +366,16 @@ void
 AsRoute::HandleTagList (int reqId, const TagList & tagList)
 {
   if (!requestInDB.contains (reqId)) {
-qDebug () << " dont know request " << reqId;
     return;
   }
-qDebug () << " handle tag response " << reqId;
-  QTreeWidgetItem * treeItem = requestInDB[reqId].destItem;
+  QString id = requestInDB[reqId].id;
   requestInDB.remove (reqId);
-  if (treeItem == 0) {
-qDebug () << " no item for reqst " << reqId;
-    return;
-  }
   for (int t=0; t<tagList.count(); t++) {
-    TagItemType tag = tagList.at(t);
-    QTreeWidgetItem * tagItem = new QTreeWidgetItem;
-    tagItem->setText (0, tag.first);
-    tagItem->setText (1, tag.second);
-    treeItem->addChild (tagItem);
+    tagMap[id] = tagList.at(t);;
   }
   numNodeDetails ++;
   mainUi.loadBar->setValue (numNodeDetails);
+  update ();
   UpdateLoad ();
 }
 
@@ -381,9 +390,6 @@ qDebug () << " unkown request " << reqId;
   QStringList::const_iterator sit;
   for (sit = wayList.begin(); sit != wayList.end(); sit++) {
     waySet.insert (*sit);
-    QTreeWidgetItem * wayItem = new QTreeWidgetItem;
-    wayItem->setText (0,QString ("way %1").arg (*sit));
-    mainUi.featureDisplay->addTopLevelItem (wayItem);
     // FindWayDetails (wayItem, *sit);
   }
   UpdateLoad ();
@@ -392,23 +398,15 @@ qDebug () << " unkown request " << reqId;
 void
 AsRoute::ListNodes ()
 {
-qDebug () << "ListNodes in thread " << QThread::currentThread();
   QSet<QString>::iterator nit;
-  QTreeWidgetItem * listItem = new QTreeWidgetItem (Cell_Header);
-  listItem->setText (0,QString ("found %1 Nodes")
-                        .arg (nodeSet.count()));
-  QList <QTreeWidgetItem*> nodeList;
+  mainUi.logDisplay->append (QString ("found %1 Notes").arg (nodeSet.count()));
   numNodeDetails = 0;
   mainUi.loadBar->setValue (numNodeDetails);
+  QueueMark ("Start Ask Node Detais");
   for (nit=nodeSet.begin(); nit!= nodeSet.end(); nit++) {
-    QTreeWidgetItem *nodeItem = new QTreeWidgetItem (Cell_Node);
-    nodeItem->setText (0,QString("node %1").arg(*nit));
-    nodeItem->setData (0, Data_NodeId, *nit);
-    QueueAskNodeDetails (nodeItem, *nit);
-    nodeList.append (nodeItem);
+    QueueAskNodeDetails (*nit);
   }
-  listItem->addChildren (nodeList);
-  mainUi.featureDisplay->addTopLevelItem (listItem);
+  QueueMark ("Done Ask Node Details");
   KickRequestQueue ();
 }
 
@@ -419,25 +417,39 @@ AsRoute::KickRequestQueue ()
 }
 
 void
-AsRoute::QueueAskNodeDetails (QTreeWidgetItem * item, const QString & id)
+AsRoute::QueueAskNodeDetails (const QString & id)
 {
+  #define NAVI_USE_LATLON 0
+  #define NAVI_USE_TAGS 0
+  #if NAVI_USE_LATLON
   RequestStruct llReq;
   llReq.type = Req_LatLon;
-  llReq.destItem = item;
   llReq.id = id;
   requestToSend.append (llReq);
-
+  #endif
+  #if NAVI_USE_TAGS
   RequestStruct tagReq;
   tagReq.type = Req_NodeTagList;
   tagReq.id = id;
-  tagReq.destItem = item;
   requestToSend.append (tagReq);
+  #endif
+}
+
+void
+AsRoute::QueueMark (const QString & mark)
+{
+  RequestStruct markReq;
+  markReq.type = Req_Mark;
+  markReq.id = mark;
+  requestToSend.append (markReq);
 }
 
 void
 AsRoute::SendSomeRequests ()
 {
   int some (maxSend);
+  static int batch (1);
+  int batchSize (0);
   while (some > 0 
          && !requestToSend.isEmpty()
          && db.PendingRequestCount() < maxPending) {
@@ -445,36 +457,45 @@ AsRoute::SendSomeRequests ()
     RequestStruct req = requestToSend.takeFirst();
     switch (req.type) {
     case Req_LatLon:
-      AskLatLon (req.destItem, req.id);
+      AskLatLon (req.id);
+      batchSize++;
       break;
     case Req_NodeTagList:
-      AskNodeTagList (req.destItem, req.id);
+      AskNodeTagList (req.id);
+      batchSize++;
+      break;
+    case Req_Mark:
+      Mark (req.id);
       break;
     default:
       break;
     }
   }
   if (!requestToSend.isEmpty ()) {
+    UpdateLoad ();
+    QueueMark (QString ("Request Batch %1 size %2").arg (batch++).arg (batchSize));
     KickRequestQueue();
+  } else {
+    QueueMark ("Reqeust List Empty");
   }
 }
 
 void
-AsRoute::AskLatLon (QTreeWidgetItem * item, const QString & nodeId)
+AsRoute::AskLatLon (const QString & nodeId)
 {
   ResponseStruct resp;
-  resp.destItem = item;
   resp.type = Req_LatLon;
+  resp.id = nodeId;
   int reqId = db.AskLatLon (nodeId);
   requestInDB[reqId] = resp;
 }
 
 void
-AsRoute::AskNodeTagList (QTreeWidgetItem *item, const QString & nodeId)
+AsRoute::AskNodeTagList (const QString & nodeId)
 {
   ResponseStruct resp;
-  resp.destItem = item;
   resp.type = Req_NodeTagList;
+  resp.id = nodeId;
   int reqId = db.AskNodeTagList (nodeId);
   requestInDB[reqId] = resp;
 }
@@ -513,6 +534,33 @@ AsRoute::ChangeMaxCount (int newmax)
   if (val <= newmax && newmax != oldmax) {
     mainUi.queryCount->setMaximum (newmax);
     mainUi.queryCount->update();
+  }
+}
+
+void
+AsRoute::Mark (const QString & msg)
+{
+  MarkStruct mark;
+  mark.elapsedStart = markClock.elapsed ();
+  int markId = db.SetMark();
+  mark.markId = markId;
+  mark.markText = msg;
+  markMap [markId] = mark;
+}
+
+void
+AsRoute::CatchMark (int markId)
+{
+  int now = markClock.elapsed ();
+  if (markMap.contains (markId)) {
+    MarkStruct mark = markMap[markId];
+    QString msg (QString ("Mark %4 at %3 elapsed %1 msec for %2")
+                   .arg (now - mark.elapsedStart)
+                   .arg (mark.markText)
+                   .arg (now)
+                   .arg (markId));
+    mainUi.logDisplay->append (msg);
+    markMap.remove (markId);
   }
 }
 

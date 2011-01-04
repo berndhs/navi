@@ -1,6 +1,6 @@
 CREATE TABLE "relationparts" (
-  "relationid" TEXT NOT NULL,
+  "relationid" INTEGER PRIMARY KEY NOT NULL,
   "othertype" TEXT NOT NULL,
-  "otherid" TEXT NOT NULL,
+  "otherid" INTEGER NOT NULL,
    UNIQUE ("relationid","otherid") ON CONFLICT IGNORE
 );

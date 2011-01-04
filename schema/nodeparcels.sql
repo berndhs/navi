@@ -1,5 +1,5 @@
 CREATE TABLE "nodeparcels" (
-  "nodeid" TEXT NOT NULL,
+  "nodeid" INTEGER  NOT NULL,
   "parcelid" INTEGER NOT NULL,
    UNIQUE ("nodeid") ON CONFLICT IGNORE
 );

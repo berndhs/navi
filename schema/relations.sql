@@ -1,3 +1,3 @@
 CREATE TABLE "relations" (
-  "relationid" TEXT CONSTRAINT "relationid" UNIQUE  ON CONFLICT IGNORE
+  "relationid" INTEGER CONSTRAINT "relationid" UNIQUE  ON CONFLICT IGNORE
 );

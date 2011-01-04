@@ -75,19 +75,26 @@ public:
   int AskWaysByNode (const QString & nodeId);
   int AskLatLon (const QString & nodeId);
   int AskNodeTagList (const QString & nodeId);
+  int AskRangeNodeTags (double south, double west, 
+                      double north, double east);
+ 
+  int SetMark ();
 
 private slots:
 
   void CatchOpen (SqlRunDatabase* db, bool ok);
   void CatchClose (SqlRunDatabase *db);
   void CatchFinished (SqlRunQuery *query, bool ok);
+  void CatchMark (int markId, bool ok);
 
 signals:
 
-  void HaveRangeNodes (int requestId, const QStringList & nodeList);
+  void HaveRangeNodes (int requestId, const NaviNodeList & nodeList);
   void HaveLatLon (int requestId, double lat, double lon);
   void HaveTagList (int requestId, const TagList & tagList);
   void HaveWayList (int requestId, const QStringList & wayList);
+  void HaveRangeNodeTags (int requestId, const TagRecordList & tagList);
+  void MarkReached (int markId);
 
 
 private:
@@ -111,6 +118,7 @@ private:
   void ReturnLatLon (SqlRunQuery *query, bool ok);
   void ReturnTagList (SqlRunQuery *query, bool ok);
   void ReturnWayList (SqlRunQuery *query, bool ok);
+  void ReturnRangeNodeTags (SqlRunQuery *query, bool ok);
   void MakeElement (SqlRunDatabase * db, const QString & elementName);
 
   struct DbState {
@@ -126,10 +134,18 @@ private:
     Query_AskRangeNodes,
     Query_AskLatLon,
     Query_AskTagList,
-    Query_AskWayList
+    Query_AskWayList,
+    Query_RangeNodeTags
   };
 
   struct QueryState {
+    QueryState () : finished (false), db(0) {}
+    QueryState (int id, QueryType t, SqlRunDatabase *rdb = 0)
+      :finished (false),
+       reqId (id),
+       type (t),
+       db (rdb)
+      {}
     bool            finished;
     int             reqId;
     QueryType       type;
