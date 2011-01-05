@@ -50,6 +50,10 @@ public:
                         double  lat,
                         double  lon);
 
+
+  void WriteWayLoc (const QString & wayId,
+                        double  lat,
+                        double  lon);
   void WriteWay (const QString & wayId);
   void WriteRelation (const QString & relId);
   void WriteWayNode (const QString & wayId,

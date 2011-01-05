@@ -70,13 +70,21 @@ public:
                    quint64 parcelIndex);
   void WriteWayParcel (const QString & wayId,
                   quint64 parcelIndex); 
+  int SetRange (QString & tablePrefix, double south, double west, 
+                      double north, double east);
+  int GetRangeWays (const QString & tablePrefix, double south, double west, 
+                      double north, double east);
+  void DropTemp (const QString & dbName);
   int AskRangeNodes (double south, double west, 
                       double north, double east);
   int AskWaysByNode (const QString & nodeId);
   int AskLatLon (const QString & nodeId);
   int AskNodeTagList (const QString & nodeId);
-  int AskRangeNodeTags (double south, double west, 
-                      double north, double east);
+  int AskNodes (const QString & tablePrefix);
+  int AskWays (const QString & tablePrefix);
+  int AskRelations (const QString & tablePrefix);
+  int AskNodeTags (const QString & tablePrefix);
+  int AskWayTags (const QString & tablePrefix);
  
   int SetMark ();
 
@@ -94,6 +102,7 @@ signals:
   void HaveTagList (int requestId, const TagList & tagList);
   void HaveWayList (int requestId, const QStringList & wayList);
   void HaveRangeNodeTags (int requestId, const TagRecordList & tagList);
+  void HaveTemp (int requestId, int ok);
   void MarkReached (int markId);
 
 
@@ -119,6 +128,7 @@ private:
   void ReturnTagList (SqlRunQuery *query, bool ok);
   void ReturnWayList (SqlRunQuery *query, bool ok);
   void ReturnRangeNodeTags (SqlRunQuery *query, bool ok);
+  void ReturnTemp (SqlRunQuery *query, bool ok);
   void MakeElement (SqlRunDatabase * db, const QString & elementName);
 
   struct DbState {
@@ -135,7 +145,8 @@ private:
     Query_AskLatLon,
     Query_AskTagList,
     Query_AskWayList,
-    Query_RangeNodeTags
+    Query_RangeNodeTags,
+    Query_CreateTemp
   };
 
   struct QueryState {

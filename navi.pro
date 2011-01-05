@@ -27,4 +27,4 @@ TEMPLATE = subdirs
 
 #SUBDIRS = collect.pro nvroute.pro asroute.pro
 #SUBDIRS = asroute.pro ascollect.pro
-SUBDIRS = asroute.pro
+SUBDIRS = collect.pro asroute.pro

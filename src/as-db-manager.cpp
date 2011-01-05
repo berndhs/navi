@@ -83,6 +83,7 @@ AsDbManager::Start ()
                 << "nodelonindex"
                 << "ways"
                 << "nodetags"
+                << "waylocs"
                 << "waytags"
                 << "waynodes"
                 << "nodeparcels"
@@ -216,6 +217,9 @@ qDebug () << " Finishe type " << type;
   case Query_RangeNodeTags:
      ReturnRangeNodeTags (query, ok);
      break;
+  case Query_CreateTemp:
+     ReturnTemp (query, ok);
+     break;
   default:
      qDebug () << " Finishe Not Handling Query " << type;
      break;
@@ -302,6 +306,22 @@ AsDbManager::AskRangeNodes (double south, double west,
 }
 
 int
+AsDbManager::AskNodes (const QString & tablePrefix)
+{
+  SqlRunQuery *query = runner->newQuery(geoBase);
+  QString cmd ("select nodeid, lat, lon from %1_nodes  ");
+  QueryState qstate;
+  qstate.type = Query_AskRangeNodes;
+  int reqId = nextRequest++;
+  qstate.reqId = reqId;
+  qstate.db = geoBase;
+  queryMap[query] = qstate;
+  query->exec (cmd.arg (tablePrefix));
+qDebug () << " sent query " << cmd.arg(tablePrefix);
+  return reqId;
+}
+
+int
 AsDbManager::AskLatLon (const QString & nodeid)
 {
   SqlRunQuery *query = runner->newQuery(geoBase);
@@ -359,6 +379,58 @@ AsDbManager::AskWaysByNode (const QString & nodeId)
 }
 
 int
+AsDbManager::SetRange (QString & tablePrefix, 
+                      double south, double west, 
+                      double north, double east)
+{
+  static int tempnum (1);
+  QString createTmp ("create  temporary table %5 as "
+               " select nodeid, lat, lon from nodes where "
+               " lat >= %1 AND lat <= %2 "
+               " AND "
+               " lon >= %3 AND lon <= %4 ");
+  tablePrefix = QString ("TR%1").arg(tempnum++);
+  QString tmpname (QString ("%1_nodes").arg (tablePrefix));
+  SqlRunQuery * tmpCreate = runner->newQuery (geoBase);
+  QueryState qstate (nextRequest++, Query_CreateTemp, geoBase);
+  int reqId = qstate.reqId;
+  queryMap[tmpCreate] = qstate;
+  QString realCmd = createTmp.arg (south).arg (north)
+                            .arg (west).arg (east)
+                            .arg (tmpname);
+qDebug () << " real Command " << realCmd;
+  tmpCreate->exec (realCmd);
+  return reqId;
+}
+
+int
+AsDbManager::GetRangeWays (const QString & prefix,
+                         double south, double west, 
+                      double north, double east)
+{
+  QString createTmp ("create temporary table %1 as "
+                     " select wayid, lat, lon from waylocs where "
+               " lat >= %2 AND lat <= %3 "
+               " AND "
+               " lon >= %4 AND lon <= %5 ");
+  QString tmpname (QString ("%1_waylocs").arg (prefix));
+  SqlRunQuery * tmpCreate = runner->newQuery (geoBase);
+  QueryState qstate1 (nextRequest++, Query_CreateTemp, geoBase);
+  queryMap[tmpCreate] = qstate1;
+
+  QString selectAll ("select distinct wayid from %1");
+  SqlRunQuery * select = runner->newQuery (geoBase);
+  QueryState qstate2 (nextRequest++, Query_AskWayList, geoBase);
+  queryMap[select] = qstate2;
+  int reqId = qstate2.reqId;
+  tmpCreate->exec (createTmp.arg (tmpname).arg (south).arg (north)
+                             .arg (west).arg(east));
+  select->exec (selectAll.arg (tmpname));
+  return reqId;
+}
+
+#if 0
+int
 AsDbManager::AskRangeNodeTags (double south, double west, 
                       double north, double east)
 {
@@ -403,6 +475,7 @@ AsDbManager::AskRangeNodeTags (double south, double west,
   drop2->exec (dropCmd.arg (tmpname2));
   return reqId;
 }
+#endif
 
 void
 AsDbManager::ReturnRangeNodes (SqlRunQuery * query, bool ok)
@@ -477,6 +550,12 @@ AsDbManager::ReturnRangeNodeTags (SqlRunQuery * query, bool ok)
     }
   }
   emit HaveRangeNodeTags (queryMap[query].reqId, list);
+}
+
+void
+AsDbManager::ReturnTemp (SqlRunQuery * query, bool ok)
+{
+  emit HaveTemp (queryMap[query].reqId, ok);
 }
 
 void

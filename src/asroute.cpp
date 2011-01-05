@@ -276,8 +276,12 @@ AsRoute::License ()
 void
 AsRoute::FeatureButton ()
 {
+  QString feature = mainUi.featureEdit->text ();
+  bool    regular = mainUi.regularCheck->isChecked ();
+  qDebug () << " want feature " << feature << " regex " << regular;
   QMessageBox::information (this, QString ("Info"), 
-                     QString ("Feature Button clicked"));
+                     QString ("Want %1 as %2").arg (feature)
+                          .arg (regular ? "expression" : "literal"));
 }
 
 void
@@ -296,23 +300,23 @@ qDebug () << "LatLonBUtton in thread " << QThread::currentThread();
   nodeSet.clear ();
   numNodeDetails = 0;
   QueueMark ("Start Asking RangeNodes");
-  db.AskRangeNodes (south,west, north,east);
+  // db.AskRangeNodes (south,west, north,east);
+  db.SetRange (localPrefix, south, west, north, east);
+  //db.MakeLocalWays (localPrefix);
+  Mark ("After Local Ways");
+  //db.MakeLocalRelations (localPrefix);
   QueueMark ("Done Asking RangeNodes");
-  db.AskRangeNodeTags (south,west,north,east);
-  QueueMark ("Done Asking Tags for Range ");
+  db.AskNodes (localPrefix);
+  db.GetRangeWays (localPrefix, south, west, north, east);
+  // db.AskRangeNodeTags (south,west,north,east);
+  // QueueMark ("Done Asking Tags for Range ");
   UpdateLoad ();
-}
-
-void
-AsRoute::ParcelButton ()
-{
-  QMessageBox::information (this, QString ("Info"), 
-                      QString ("Parcel Button clicked"));
 }
 
 void
 AsRoute::HandleRangeNodes (int reqId, const NaviNodeList & nodes)
 {
+qDebug () << " HangleRangeNodes " << reqId;
   requestInDB.remove (reqId);
   numNodes = nodes.count();
   mainUi.loadBar->setMaximum (numNodes);

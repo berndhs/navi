@@ -76,7 +76,6 @@ HEADERS = \
           src/helpview.h \
           src/db-manager.h \
           src/navi-global.h \
-          src/sqlite-runner.h \
 
 
 SOURCES = \
@@ -90,5 +89,4 @@ SOURCES = \
           src/helpview.cpp \
           src/db-manager.cpp \
           src/navi-global.cpp \
-          src/sqlite-runner.cpp \
 

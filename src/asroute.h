@@ -48,7 +48,6 @@ private slots:
   void SendSomeRequests ();
   void KickRequestQueue ();
   void LatLonButton ();
-  void ParcelButton ();
   void FeatureButton ();
   void HandleRangeNodes (int reqId, const NaviNodeList & nodes);
   void HandleLatLon (int reqId, double lat, double lon);
@@ -147,6 +146,7 @@ private:
   QMap <int, MarkStruct>  markMap;
 
   QMap <QString, QVector2D>   nodeCoords;
+  QString   localPrefix;
 
 } ;
 

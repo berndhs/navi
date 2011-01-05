@@ -305,6 +305,7 @@ Collect::ProcessData (QByteArray & data)
   wayNodes.clear ();
   wayAttrMap.clear ();
   nodeAttrMap.clear ();
+  wayLocs.clear ();
   replyDoc.setContent (data);
   ProcessNodes (replyDoc);
   ProcessWays (replyDoc);
@@ -394,6 +395,11 @@ Collect::ProcessWay (const QDomNode & node)
       } else if (tagName == "nd") {
         QString nodeId = kidElt.attribute ("ref");
         nodeIdList.append (nodeId);
+        if (nodeMap.contains (nodeId)) {
+          NaviNode node = nodeMap[nodeId];
+          NaviNode wayLoc (id, node.Lat(), node.Lon());
+          wayLocs.append (wayLoc);
+        }
       }
     }
   }
@@ -640,13 +646,21 @@ Collect::SaveWaysSql ()
     }
   }
   db.CommitTransaction ();
+  db.StartTransaction ();
+  int nl = wayLocs.count();
+  for (int l=0;  l<nl; l++) {
+    NaviNode loc = wayLocs.at(l);
+    db.WriteWayLoc (loc.Id(), loc.Lat(), loc.Lon());
+  }
+  db.CommitTransaction ();
   int msecs = clock.elapsed ();
   LogStatus  (QString ("wrote %1 ways "
-                                      "%2 tags %3 nodes in %4 msecs")
+                                      "%2 tags %3 nodes %5 waylocs in %4 msecs")
                             .arg (savedid)
                             .arg (savedtag)
                             .arg (savednode)
-                            .arg (msecs));
+                            .arg (msecs)
+                            .arg (nl));
   ContinueSequence ();
 }
 

@@ -73,7 +73,7 @@ main (int argc, char *argv[])
   int result;
   QApplication  app (argc, argv);
 
-#if DELIBERATE_DEBUG
+#if DELIBERATE_DEBUG_NOT_NOW
   deliberate::StartDebugLog (showDebug);
   bool logDebug = opts.SeenOpt ("logdebug");
   if (logDebug) {

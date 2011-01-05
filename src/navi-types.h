@@ -93,6 +93,7 @@ private:
   QString value;
 };
 
+
 typedef QPair <QString, QString>  TagItemType;
 typedef QList <TagItemType>       TagList;
 typedef QList <NaviNode>          NaviNodeList;

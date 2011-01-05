@@ -15,6 +15,7 @@
   <file alias="nodelatindex.sql">schema/nodelatindex.sql</file>
   <file alias="nodelonindex.sql">schema/nodelonindex.sql</file>
   <file alias="ways.sql">schema/ways.sql</file>
+  <file alias="waylocs.sql">schema/waylocs.sql</file>
   <file alias="waytags.sql">schema/waytags.sql</file>
   <file alias="waynodes.sql">schema/waynodes.sql</file>
   <file alias="nodeparcels.sql">schema/nodeparcels.sql</file>

@@ -76,6 +76,7 @@ DbManager::Start ()
                 << "nodelonindex"
                 << "ways"
                 << "nodetags"
+                << "waylocs"
                 << "waytags"
                 << "waynodes"
                 << "nodeparcels"
@@ -371,6 +372,23 @@ DbManager::WriteNode (const QString & nodeId,
   QSqlQuery insert (geoBase);
   insert.prepare (cmd);
   insert.bindValue (0, QVariant(nodeId));
+  insert.bindValue (1, QVariant(lat));
+  insert.bindValue (2, QVariant(lon));
+  bool ok = insert.exec ();
+  qDebug () << " query " << ok << insert.executedQuery ();
+}
+
+void
+DbManager::WriteWayLoc (const QString & wayId,
+                            double lat,
+                            double lon)
+{
+  QString cmd ("insert or replace into waylocs "
+               " (wayid, lat, lon) "
+               " VALUES (?, ?, ?) ");
+  QSqlQuery insert (geoBase);
+  insert.prepare (cmd);
+  insert.bindValue (0, QVariant(wayId));
   insert.bindValue (1, QVariant(lat));
   insert.bindValue (2, QVariant(lon));
   bool ok = insert.exec ();
