@@ -49,7 +49,7 @@ public:
 
   MapDisplay (QWidget * parent=0);
 
-  void AddPoint (const QPointF & p);
+  void AddPoint (const QPointF & p, bool special=false);
   void ClearPoints ();
 
 private slots:
@@ -68,7 +68,7 @@ protected:
 
 private:
 
-  void PaintPoints (QPainter * painter);
+  void PaintPoints (QPainter * painter, QList<QPointF> & plist);
   QPointF Scale (const QPointF p);
   void    SetRange ();
 
@@ -79,6 +79,7 @@ private:
   QTime           clock;
 
   QList <QPointF>  points;
+  QList <QPointF>  specialPoints;
   double           xLo;
   double           yLo;
   double           xHi;

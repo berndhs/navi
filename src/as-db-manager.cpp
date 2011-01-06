@@ -214,6 +214,9 @@ qDebug () << " Finishe type " << type;
   case Query_AskWayList:
      ReturnWayList (query, ok);
      break;
+  case Query_AskWayTurnList:
+     ReturnWayTurnList (query, ok);
+     break;
   case Query_RangeNodeTags:
      ReturnRangeNodeTags (query, ok);
      break;
@@ -379,6 +382,28 @@ AsDbManager::AskWaysByNode (const QString & nodeId)
 }
 
 int
+AsDbManager::AskWaysByTag (const QString & key, const QString & value,
+                          bool regular)
+{
+  SqlRunQuery * query = runner->newQuery (geoBase);
+  if (!query) {
+    qDebug () << "Query allocation failure";
+    return -1;
+  }
+  QString cmd ("select wayid from waytags where "
+               " key = \"%1\" AND value %2 \"%3\"");
+  QString op (regular ? "GLOB" : "=");
+  QueryState qstate;
+  qstate.type = Query_AskWayList;
+  int reqId = nextRequest;
+  qstate.reqId = reqId;
+  queryMap[query] = qstate;
+  query->exec (cmd.arg (key).arg(op).arg(value));
+  return reqId;
+}
+  
+
+int
 AsDbManager::SetRange (QString & tablePrefix, 
                       double south, double west, 
                       double north, double east)
@@ -409,7 +434,7 @@ AsDbManager::GetRangeWays (const QString & prefix,
                       double north, double east)
 {
   QString createTmp ("create temporary table %1 as "
-                     " select wayid, lat, lon from waylocs where "
+                     " select wayid, nodeid, seq, lat, lon from waylocs where "
                " lat >= %2 AND lat <= %3 "
                " AND "
                " lon >= %4 AND lon <= %5 ");
@@ -418,9 +443,9 @@ AsDbManager::GetRangeWays (const QString & prefix,
   QueryState qstate1 (nextRequest++, Query_CreateTemp, geoBase);
   queryMap[tmpCreate] = qstate1;
 
-  QString selectAll ("select distinct wayid from %1");
+  QString selectAll ("select wayid, nodeid, seq, lat, lon from %1");
   SqlRunQuery * select = runner->newQuery (geoBase);
-  QueryState qstate2 (nextRequest++, Query_AskWayList, geoBase);
+  QueryState qstate2 (nextRequest++, Query_AskWayTurnList, geoBase);
   queryMap[select] = qstate2;
   int reqId = qstate2.reqId;
   tmpCreate->exec (createTmp.arg (tmpname).arg (south).arg (north)
@@ -536,6 +561,24 @@ AsDbManager::ReturnWayList (SqlRunQuery * query, bool ok)
   }
   int reqId = queryMap[query].reqId;
   emit HaveWayList (reqId, wayList);
+}
+
+void
+AsDbManager::ReturnWayTurnList (SqlRunQuery * query, bool ok)
+{
+  WayTurnList wayList;
+  if (ok && query) {
+    while (query->next ()) {
+      WayTurn turn (query->value(0).toString(),
+                    query->value(1).toString(),
+                    query->value(2).toInt(),
+                    query->value(3).toDouble(),
+                    query->value(4).toDouble ());
+      wayList.append (turn);
+    }
+  }
+  int reqId = queryMap[query].reqId;
+  emit HaveWayTurnList (reqId, wayList);
 }
 
 void

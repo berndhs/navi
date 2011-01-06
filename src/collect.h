@@ -157,7 +157,7 @@ private:
   QMap <QString, AttrList>     relationAttrMap;
   QMap <QString, AttrList>     relationMembers;
   QMap <QString, QStringList>  wayNodes;
-  QList <NaviNode>             wayLocs;
+  QList <WayTurn>             wayLocs;
 
   QStringList                  inputFiles;
   QString                      currentFile;

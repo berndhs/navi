@@ -380,17 +380,21 @@ DbManager::WriteNode (const QString & nodeId,
 
 void
 DbManager::WriteWayLoc (const QString & wayId,
+                        const QString & nodeId,
+                            int seq,
                             double lat,
                             double lon)
 {
   QString cmd ("insert or replace into waylocs "
-               " (wayid, lat, lon) "
-               " VALUES (?, ?, ?) ");
+               " (wayid, nodeid, seq, lat, lon) "
+               " VALUES (?, ?, ?, ?, ?) ");
   QSqlQuery insert (geoBase);
   insert.prepare (cmd);
   insert.bindValue (0, QVariant(wayId));
-  insert.bindValue (1, QVariant(lat));
-  insert.bindValue (2, QVariant(lon));
+  insert.bindValue (1, QVariant(nodeId));
+  insert.bindValue (2, QVariant (seq));
+  insert.bindValue (3, QVariant(lat));
+  insert.bindValue (4, QVariant(lon));
   bool ok = insert.exec ();
   qDebug () << " query " << ok << insert.executedQuery ();
 }

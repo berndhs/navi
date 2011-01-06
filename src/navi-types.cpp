@@ -30,7 +30,99 @@ ParcelIndex (double lat, double lon)
 {
   qint32 ilat = qRound (lat * 100000.0);
   qint32 ilon = qRound (lon * 100000.0);
-  return (ilat << 32) | ilon;
+  return (qint64(ilat) << 32) | ilon;
+}
+
+WayTurn::WayTurn ()
+{
+}
+
+WayTurn::WayTurn (const QString & wayId, const QString & nodeId,
+                  int seq, 
+                  double lat, double lon)
+  :mWay (wayId),
+   mNode (nodeId),
+   mSeq (seq),
+   mLat (lat),
+   mLon (lon)
+{
+}
+
+WayTurn::WayTurn (const WayTurn & other)
+  :mWay (other.mWay),
+   mNode (other.mNode),
+   mSeq (other.mSeq),
+   mLat (other.mLat),
+   mLon (other.mLon)
+{
+}
+
+WayTurn &
+WayTurn::operator = (const WayTurn & other)
+{
+  if (&other != this) {
+    mWay = other.mWay;
+    mNode = other.mNode;
+    mSeq = other.mSeq;
+    mLat = other.mLat;
+    mLon = other.mLon;
+  }
+  return *this;
+}
+
+QString
+WayTurn::WayId () const
+{
+  return mWay;
+}
+
+QString
+WayTurn::NodeId () const
+{
+  return mNode;
+}
+
+int
+WayTurn::Seq () const
+{
+  return mSeq;
+}
+
+double
+WayTurn::Lat () const
+{
+  return mLat;
+}
+
+double
+WayTurn::Lon () const
+{
+  return mLon;
+}
+
+void
+WayTurn::SetWayId (const QString & id)
+{
+  mWay = id;
+}
+
+void
+WayTurn::SetNodeId (const QString & nid)
+{
+  mNode = nid;
+}
+
+void
+WayTurn::SetSeq (int s)
+{
+  mSeq = s;
+}
+
+void
+WayTurn::SetLatLon (double lt, double ln)
+{
+  mLat = lt;
+  mLon = ln;
 }
 
 

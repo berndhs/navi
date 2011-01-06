@@ -93,11 +93,44 @@ private:
   QString value;
 };
 
+class WayTurn {
+public:
+
+  WayTurn ();
+  WayTurn (const QString & wayId,
+           const QString & nodeId,
+           int  seq,
+           double lat,
+           double lon);
+  WayTurn (const WayTurn & other);
+  WayTurn & operator = (const WayTurn & other);
+
+  QString WayId () const;
+  QString NodeId () const;
+  int     Seq() const;
+  double  Lat () const;
+  double  Lon () const;
+
+  void SetWayId (const QString & id);
+  void SetNodeId (const QString & nid);
+  void SetSeq (int s);
+  void SetLatLon (double lt, double ln);
+
+private:
+
+  QString  mWay;
+  QString  mNode;
+  int      mSeq;
+  double   mLat;
+  double   mLon;
+};
+
 
 typedef QPair <QString, QString>  TagItemType;
 typedef QList <TagItemType>       TagList;
 typedef QList <NaviNode>          NaviNodeList;
 typedef QList <TagRecord>         TagRecordList;
+typedef QList <WayTurn>           WayTurnList;
 
 } // namespace
 

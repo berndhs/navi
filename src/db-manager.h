@@ -52,6 +52,8 @@ public:
 
 
   void WriteWayLoc (const QString & wayId,
+                    const QString & nodeId,
+                        int   seq,
                         double  lat,
                         double  lon);
   void WriteWay (const QString & wayId);

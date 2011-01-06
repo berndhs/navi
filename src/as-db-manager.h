@@ -78,6 +78,8 @@ public:
   int AskRangeNodes (double south, double west, 
                       double north, double east);
   int AskWaysByNode (const QString & nodeId);
+  int AskWaysByTag (const QString & key, const QString & value, 
+                    bool regular=false);
   int AskLatLon (const QString & nodeId);
   int AskNodeTagList (const QString & nodeId);
   int AskNodes (const QString & tablePrefix);
@@ -101,6 +103,7 @@ signals:
   void HaveLatLon (int requestId, double lat, double lon);
   void HaveTagList (int requestId, const TagList & tagList);
   void HaveWayList (int requestId, const QStringList & wayList);
+  void HaveWayTurnList (int requestId, const WayTurnList & wayTurnList);
   void HaveRangeNodeTags (int requestId, const TagRecordList & tagList);
   void HaveTemp (int requestId, int ok);
   void MarkReached (int markId);
@@ -127,6 +130,7 @@ private:
   void ReturnLatLon (SqlRunQuery *query, bool ok);
   void ReturnTagList (SqlRunQuery *query, bool ok);
   void ReturnWayList (SqlRunQuery *query, bool ok);
+  void ReturnWayTurnList (SqlRunQuery *query, bool ok);
   void ReturnRangeNodeTags (SqlRunQuery *query, bool ok);
   void ReturnTemp (SqlRunQuery *query, bool ok);
   void MakeElement (SqlRunDatabase * db, const QString & elementName);
@@ -145,6 +149,7 @@ private:
     Query_AskLatLon,
     Query_AskTagList,
     Query_AskWayList,
+    Query_AskWayTurnList,
     Query_RangeNodeTags,
     Query_CreateTemp
   };

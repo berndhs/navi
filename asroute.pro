@@ -87,6 +87,7 @@ HEADERS = \
           src/helpview.h \
           src/as-db-manager.h \
           src/navi-global.h \
+          src/navi-types.h \
           src/route-cell-menus.h \
           src/map-display.h \
           src/move-button.h \
@@ -103,6 +104,7 @@ SOURCES = \
           src/helpview.cpp \
           src/as-db-manager.cpp \
           src/navi-global.cpp \
+          src/navi-types.cpp \
           src/route-cell-menus.cpp \
           src/map-display.cpp \
           src/move-button.cpp \

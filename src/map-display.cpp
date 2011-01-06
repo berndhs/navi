@@ -74,9 +74,13 @@ MapDisplay::MapDisplay (QWidget *parent)
 }
 
 void
-MapDisplay::AddPoint (const QPointF & p)
+MapDisplay::AddPoint (const QPointF & p, bool special)
 {
-  points.append (p);
+  if (special) {
+    specialPoints.append (p);
+  } else {
+    points.append (p);
+  }
   if (xLo > p.x()) { xLo = p.x(); }
   if (xHi < p.x()) { xHi = p.x(); }
   if (yLo > p.y()) { yLo = p.y(); }
@@ -87,6 +91,7 @@ void
 MapDisplay::ClearPoints ()
 {
   points.clear ();
+  specialPoints.clear ();
   xLo = 180.0;
   yLo = 90.0;
   xHi = -180.0;
@@ -202,7 +207,9 @@ MapDisplay::FullPaint ()
 
   painter.save ();
   painter.setPen (QColor(0,0,0,255));
-  PaintPoints (&painter);
+  PaintPoints (&painter, points);
+  painter.setPen (QColor(255,0,0,255));
+  PaintPoints (&painter, specialPoints);
   painter.restore ();
  
   painter.end();
@@ -214,14 +221,14 @@ MapDisplay::ZoomPaint ()
 }
 
 void
-MapDisplay::PaintPoints (QPainter * painter)
+MapDisplay::PaintPoints (QPainter * painter, QList<QPointF> & plist)
 {
   if (!painter) {
     return;
   }
-  int np = points.count();
+  int np = plist.count();
   for (int i=0;i<np; i++) {
-    QPointF here = Scale (points.at(i));
+    QPointF here = Scale (plist.at(i));
     painter->drawPoint (here);
   }
 }

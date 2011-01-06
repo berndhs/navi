@@ -382,6 +382,7 @@ Collect::ProcessWay (const QDomNode & node)
   QDomNodeList kids = node.childNodes ();
   QStringList nodeIdList;
   AttrList    attrList;
+  int seqNum(0);
   for (int k=0; k<kids.count(); k++) {
     QDomNode kid = kids.item(k);
     if (kid.isElement()) {
@@ -397,7 +398,7 @@ Collect::ProcessWay (const QDomNode & node)
         nodeIdList.append (nodeId);
         if (nodeMap.contains (nodeId)) {
           NaviNode node = nodeMap[nodeId];
-          NaviNode wayLoc (id, node.Lat(), node.Lon());
+          WayTurn wayLoc (id, nodeId, seqNum++, node.Lat(), node.Lon());
           wayLocs.append (wayLoc);
         }
       }
@@ -649,8 +650,8 @@ Collect::SaveWaysSql ()
   db.StartTransaction ();
   int nl = wayLocs.count();
   for (int l=0;  l<nl; l++) {
-    NaviNode loc = wayLocs.at(l);
-    db.WriteWayLoc (loc.Id(), loc.Lat(), loc.Lon());
+    WayTurn loc = wayLocs.at(l);
+    db.WriteWayLoc (loc.WayId(), loc.NodeId(), loc.Seq(), loc.Lat(), loc.Lon());
   }
   db.CommitTransaction ();
   int msecs = clock.elapsed ();

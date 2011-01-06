@@ -35,6 +35,7 @@
 #include <unistd.h>
 
 using namespace deliberate;
+using namespace std;
 
 namespace navi
 {
@@ -164,6 +165,8 @@ AsRoute::Connect ()
            this, SLOT (HandleTagList (int, const TagList &)));
   connect (&db, SIGNAL (HaveWayList (int, const QStringList &)),
            this, SLOT (HandleWayList (int, const QStringList &)));
+  connect (&db, SIGNAL (HaveWayTurnList (int, const WayTurnList &)),
+           this, SLOT (HandleWayTurnList (int, const WayTurnList &)));
   connect (&db, SIGNAL (HaveRangeNodeTags (int, const TagRecordList &)),
            this, SLOT (HandleRangeNodeTags (int, const TagRecordList &)));
   connect (&db, SIGNAL (MarkReached (int)),
@@ -217,7 +220,23 @@ AsRoute::DrawMap ()
     mapWidget->AddPoint (mit->toPointF());
     np++;
   }
+  int red = redWays.count ();
+  for (int r=0; r<red; r++) {
+     MakeRed (redWays.at(r));
+  }
   mapWidget->repaint ();
+}
+
+void
+AsRoute::MakeRed (const QString & wayId)
+{
+  multimap<QString, WayTurn>::iterator mmit;
+  for (mmit=turnMap.lower_bound (wayId); 
+       mmit != turnMap.end() && (*mmit).first == wayId; 
+       mmit++) {
+    WayTurn turn = (*mmit).second;
+    mapWidget->AddPoint (nodeCoords[turn.NodeId()].toPointF(), true);
+  }
 }
 
 void
@@ -282,6 +301,8 @@ AsRoute::FeatureButton ()
   QMessageBox::information (this, QString ("Info"), 
                      QString ("Want %1 as %2").arg (feature)
                           .arg (regular ? "expression" : "literal"));
+  redWays.clear ();
+  db.AskWaysByTag ("name", feature, regular);
 }
 
 void
@@ -386,19 +407,41 @@ AsRoute::HandleTagList (int reqId, const TagList & tagList)
 void
 AsRoute::HandleWayList (int reqId, const QStringList & wayList)
 {
+qDebug () << "HandleWayList";
   if (!requestInDB.contains (reqId)) {
 qDebug () << " unkown request " << reqId;
-    return;
+  } else {
+    requestInDB.remove (reqId);
   }
-  requestInDB.remove (reqId);
   QStringList::const_iterator sit;
+  mainUi.logDisplay->append (QString ("matching ways: %1").arg(wayList.count()));
   for (sit = wayList.begin(); sit != wayList.end(); sit++) {
     waySet.insert (*sit);
+    redWays.append (*sit);
     // FindWayDetails (wayItem, *sit);
   }
   UpdateLoad ();
 }
 
+void
+AsRoute::HandleWayTurnList (int reqId, const WayTurnList & wayList)
+{
+qDebug () << "HandleWayTurnList";
+  if (!requestInDB.contains (reqId)) {
+qDebug () << " unkown request " << reqId;
+  } else {
+    requestInDB.remove (reqId);
+  }
+  WayTurnList::const_iterator sit;
+  int nw = wayList.count();
+  mainUi.logDisplay->append (QString("Way Turn list entries: %1").arg(nw));
+  for (sit = wayList.begin(); sit != wayList.end(); sit++) {
+    waySet.insert (sit->WayId());
+    turnMap.insert (pair<QString, WayTurn> (sit->WayId(), *sit));
+    // FindWayDetails (wayItem, *sit);
+  }
+  UpdateLoad ();
+}
 void
 AsRoute::ListNodes ()
 {

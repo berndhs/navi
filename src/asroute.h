@@ -13,8 +13,11 @@
 #include <QVector2D>
 #include <QPoint>
 #include <QMap>
+#include <map>
 
 class QApplication;
+
+using namespace std;
 
 namespace navi
 {
@@ -53,6 +56,7 @@ private slots:
   void HandleLatLon (int reqId, double lat, double lon);
   void HandleTagList (int reqId, const TagList & tagList);
   void HandleWayList (int reqId, const QStringList & wayList);
+  void HandleWayTurnList (int reqId, const WayTurnList & wayList);
   void HandleRangeNodeTags (int reqId, const TagRecordList & tagList);
   void ChangeMaxCount (int newmax);
   void FindWays ();
@@ -67,6 +71,8 @@ private:
   void UpdateLoad ();
   void Mark (const QString & message = QString ("Mark"));
   void QueueMark (const QString & message = QString ("Queued Mark"));
+  void MakeRed (const QString & wayId);
+
   enum CellType {
        Cell_NoType = 0,
        Cell_Node = 1,
@@ -144,6 +150,9 @@ private:
   int    numQueries;
   QTime  markClock;
   QMap <int, MarkStruct>  markMap;
+
+  multimap <QString, WayTurn>   turnMap;
+  QStringList                  redWays;
 
   QMap <QString, QVector2D>   nodeCoords;
   QString   localPrefix;
